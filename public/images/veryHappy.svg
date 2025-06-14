@@ -1,0 +1,17 @@
+<svg width="200" height="200" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="24" cy="24" r="20" fill="#10B981" stroke="#059669" stroke-width="2" />
+  <!-- 눈썹 -->
+  <path d="M12 14 Q16 12, 20 14" stroke="#059669" stroke-width="2" fill="none" stroke-linecap="round" />
+  <path d="M28 14 Q32 12, 36 14" stroke="#059669" stroke-width="2" fill="none" stroke-linecap="round" />
+  <!-- 눈 - 웃는 눈 -->
+  <path d="M12 18 Q16 16, 20 18" stroke="#059669" stroke-width="2" fill="none" stroke-linecap="round" />
+  <path d="M28 18 Q32 16, 36 18" stroke="#059669" stroke-width="2" fill="none" stroke-linecap="round" />
+  <!-- 코 -->
+  <ellipse cx="24" cy="22" rx="1" ry="2" fill="#059669" />
+  <!-- 입 - 매우 큰 웃음 -->
+  <path d="M14 28 Q24 36, 34 28" stroke="#059669" stroke-width="2" fill="none" stroke-linecap="round" />
+  <path d="M16 30 Q24 34, 32 30" stroke="#059669" stroke-width="1" fill="none" stroke-linecap="round" />
+  <!-- 볼 -->
+  <circle cx="12" cy="26" r="3" fill="#34D399" opacity="0.6" />
+  <circle cx="36" cy="26" r="3" fill="#34D399" opacity="0.6" />
+</svg>

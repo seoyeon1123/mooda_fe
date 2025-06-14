@@ -1,0 +1,15 @@
+{
+  "mcp.mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "@modelcontextprotocol/server-filesystem",
+        "/Users/iseoyeon/Documents/Obsidian Vault"
+      ],
+      "env": {
+        "ALLOWED_EXTENSIONS": ".md,.txt,.canvas",
+        "ALLOW_WRITE": "true"
+      }
+    }
+  }
+}

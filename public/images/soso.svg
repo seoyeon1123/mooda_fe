@@ -1,0 +1,15 @@
+<svg width="200" height="200" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="24" cy="24" r="20" fill="#9CA3AF" stroke="#6B7280" stroke-width="2" />
+  <!-- 눈썹 -->
+  <line x1="13" y1="15" x2="19" y2="15" stroke="#6B7280" stroke-width="2" stroke-linecap="round" />
+  <line x1="29" y1="15" x2="35" y2="15" stroke="#6B7280" stroke-width="2" stroke-linecap="round" />
+  <!-- 눈 -->
+  <circle cx="16" cy="18" r="2" fill="#6B7280" />
+  <circle cx="32" cy="18" r="2" fill="#6B7280" />
+  <circle cx="16" cy="17" r="0.5" fill="#D1D5DB" />
+  <circle cx="32" cy="17" r="0.5" fill="#D1D5DB" />
+  <!-- 코 -->
+  <path d="M24 20 L24 24 M22 23 L24 24 L26 23" stroke="#6B7280" stroke-width="1" fill="none" stroke-linecap="round" />
+  <!-- 입 - 일직선 -->
+  <line x1="18" y1="30" x2="30" y2="30" stroke="#6B7280" stroke-width="2" stroke-linecap="round" />
+</svg>

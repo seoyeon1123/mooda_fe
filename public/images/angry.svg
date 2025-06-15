@@ -1,0 +1,24 @@
+<svg width={size} height={size} viewBox="0 0 48 48" fill="none">
+    <circle cx="24" cy="24" r="20" fill="#DC2626" stroke="#991B1B" strokeWidth="2" />
+    {/* 눈썹 - 매우 화난 각진 눈썹 */}
+    <path d="M12 12 L20 16" stroke="#991B1B" strokeWidth="3" strokeLinecap="round" />
+    <path d="M36 12 L28 16" stroke="#991B1B" strokeWidth="3" strokeLinecap="round" />
+    {/* 눈 - 화난 눈 (작고 날카로운) */}
+    <ellipse cx="16" cy="18" rx="3" ry="1.5" fill="#991B1B" />
+    <ellipse cx="32" cy="18" rx="3" ry="1.5" fill="#991B1B" />
+    <circle cx="16" cy="17.5" r="0.5" fill="#FCA5A5" />
+    <circle cx="32" cy="17.5" r="0.5" fill="#FCA5A5" />
+    {/* 코 - 화난 코 (벌름거리는 콧구멍) */}
+    <path d="M24 20 L24 25" stroke="#991B1B" strokeWidth="2" strokeLinecap="round" />
+    <ellipse cx="22" cy="24" rx="1.5" ry="1" fill="#991B1B" />
+    <ellipse cx="26" cy="24" rx="1.5" ry="1" fill="#991B1B" />
+    {/* 입 - 화난 입 (이를 드러내는 표정) */}
+    <path d="M16 30 L32 30" stroke="#991B1B" strokeWidth="2" strokeLinecap="round" />
+    <rect x="18" y="28" width="2" height="4" fill="#FCA5A5" />
+    <rect x="21" y="28" width="2" height="4" fill="#FCA5A5" />
+    <rect x="25" y="28" width="2" height="4" fill="#FCA5A5" />
+    <rect x="28" y="28" width="2" height="4" fill="#FCA5A5" />
+    {/* 화난 표정 강조선 */}
+    <path d="M10 20 L14 24" stroke="#991B1B" strokeWidth="1" strokeLinecap="round" />
+    <path d="M34 24 L38 20" stroke="#991B1B" strokeWidth="1" strokeLinecap="round" />
+  </svg>

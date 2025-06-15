@@ -1,0 +1,21 @@
+  <svg width={size} height={size} viewBox="0 0 48 48" fill="none">
+    <circle cx="24" cy="24" r="20" fill="#EF4444" stroke="#DC2626" strokeWidth="2" />
+    {/* 눈썹 - 매우 슬픈 */}
+    <path d="M12 14 L20 18" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" />
+    <path d="M28 18 L36 14" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" />
+    {/* 눈 - 매우 슬픈 눈 */}
+    <path d="M12 18 L20 22" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" />
+    <path d="M20 18 L12 22" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" />
+    <path d="M28 18 L36 22" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" />
+    <path d="M36 18 L28 22" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" />
+    {/* 코 */}
+    <path d="M24 22 L24 26 M22 25 L24 26 L26 25" stroke="#DC2626" strokeWidth="2" fill="none" strokeLinecap="round" />
+    <circle cx="22" cy="24" r="0.5" fill="#DC2626" />
+    <circle cx="26" cy="24" r="0.5" fill="#DC2626" />
+    {/* 입 - 매우 슬픈 표정 */}
+    <path d="M16 35 Q24 30, 32 35" stroke="#DC2626" strokeWidth="2" fill="none" strokeLinecap="round" />
+    <path d="M18 33 Q24 31, 30 33" stroke="#DC2626" strokeWidth="1" fill="none" strokeLinecap="round" />
+    {/* 눈물 */}
+    <ellipse cx="12" cy="26" rx="1" ry="4" fill="#F87171" />
+    <ellipse cx="36" cy="26" rx="1" ry="4" fill="#F87171" />
+  </svg>

@@ -39,7 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+<<<<<<< HEAD
 
 
 .cursorrules
 .vscode/
+=======
+>>>>>>> c67a37446876d4023f04ef84ad9f579d06453255

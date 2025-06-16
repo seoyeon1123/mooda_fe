@@ -1,4 +1,4 @@
-  <svg width={size} height={size} viewBox="0 0 48 48" fill="none">
+  <svg width="200" height="200" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
     <circle cx="24" cy="24" r="20" fill="#EF4444" stroke="#DC2626" strokeWidth="2" />
     {/* 눈썹 - 매우 슬픈 */}
     <path d="M12 14 L20 18" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" />

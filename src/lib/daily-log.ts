@@ -4,7 +4,7 @@ import path from 'path';
 export async function saveDailyLog(content: string) {
   const today = new Date().toISOString().split('T')[0];
   const obsidianPath = process.env.OBSIDIAN_VAULT_PATH || ''; // .env.local에 설정
-  const filePath = path.join(obsidianPath, '기록', `${today}.md`);
+  const filePath = path.join(obsidianPath, 'Mooda', '기록', `${today}.md`);
 
   try {
     // 디렉토리 확인/생성

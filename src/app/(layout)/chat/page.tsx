@@ -23,12 +23,23 @@ export default function ChatTab() {
   useEffect(() => {
     const initializeChat = async () => {
       const conversations = await loadConversationHistory(userId);
-      setMessages(conversations);
-
       const settings = loadSettings();
       setCurrentPersonalityId(settings.selectedPersonalityId);
       const personality = getPersonalityById(settings.selectedPersonalityId);
       setCurrentPersonality(personality || null);
+
+      // 대화 내역이 없으면 환영 메시지 추가
+      if (conversations.length === 0 && personality) {
+        const welcomeMessage = {
+          id: Date.now(),
+          type: 'ai' as const,
+          content: `안녕! 나는 ${personality.name}야! ${personality.shortDescription}`,
+          timestamp: new Date(),
+        };
+        setMessages([welcomeMessage]);
+      } else {
+        setMessages(conversations);
+      }
     };
 
     initializeChat();

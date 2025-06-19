@@ -130,14 +130,12 @@ async function handleSendMessage(data: {
     const aiContent = response.text();
 
     // 7단계: AI 응답 길이 제한 (50자 초과 시 자동 자르기)
-    const shortResponse =
-      aiContent.length > 100 ? aiContent.substring(0, 50) + '...' : aiContent;
 
     // 8단계: AI 응답을 메모리 저장소에 저장
     const aiResponse = {
       id: Date.now() + 1, // 사용자 메시지보다 1 큰 ID
       type: 'ai' as const, // AI 응답임을 명시
-      content: shortResponse, // 길이 제한된 AI 응답
+      content: aiContent, // 길이 제한된 AI 응답
       timestamp: new Date(), // 응답 생성 시간
     };
 

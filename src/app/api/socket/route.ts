@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { NextRequest, NextResponse } from "next/server";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import {
   getPersonalityById,
   getDefaultPersonality,
-} from '@/lib/ai-personalities';
+} from "@/lib/ai-personalities";
 
 // Google Gemini AI 클라이언트 초기화
 // 환경변수에서 API 키를 가져와서 Gemini AI 서비스에 연결
@@ -16,7 +16,7 @@ const userConversations = new Map<
   string,
   Array<{
     id: number; // 메시지 고유 ID (타임스탬프 기반)
-    type: 'user' | 'ai'; // 메시지 발신자 구분
+    type: "user" | "ai"; // 메시지 발신자 구분
     content: string; // 메시지 내용
     timestamp: Date; // 메시지 생성 시간
   }>
@@ -27,7 +27,7 @@ const userConversations = new Map<
  * 클라이언트에서 서버가 정상 작동하는지 확인할 때 사용
  */
 export async function GET() {
-  return NextResponse.json({ message: 'Chat API server is running' });
+  return NextResponse.json({ message: "Chat API server is running" });
 }
 
 /**
@@ -44,18 +44,18 @@ export async function POST(request: NextRequest) {
 
     // action 타입에 따라 적절한 함수 호출
     switch (action) {
-      case 'send-message': // AI와 대화하기
+      case "send-message": // AI와 대화하기
         return await handleSendMessage(data);
-      case 'analyze-emotion': // 감정 분석하기
+      case "analyze-emotion": // 감정 분석하기
         return await handleAnalyzeEmotion(data);
-      case 'get-conversation-history': // 대화 기록 불러오기
+      case "get-conversation-history": // 대화 기록 불러오기
         return await getConversationHistory(data);
       default:
-        return NextResponse.json({ error: '알 수 없는 액션' }, { status: 400 });
+        return NextResponse.json({ error: "알 수 없는 액션" }, { status: 400 });
     }
   } catch (error) {
-    console.error('API 오류:', error);
-    return NextResponse.json({ error: '서버 오류' }, { status: 500 });
+    console.error("API 오류:", error);
+    return NextResponse.json({ error: "서버 오류" }, { status: 500 });
   }
 }
 
@@ -84,7 +84,7 @@ async function handleSendMessage(data: {
     // 1단계: 사용자 메시지를 메모리 저장소에 저장
     const userMessage = {
       id: Date.now(), // 현재 시간을 ID로 사용
-      type: 'user' as const, // 사용자 메시지임을 명시
+      type: "user" as const, // 사용자 메시지임을 명시
       content: message, // 실제 메시지 내용
       timestamp, // 메시지 생성 시간
     };
@@ -102,12 +102,12 @@ async function handleSendMessage(data: {
       : getDefaultPersonality();
 
     // 3단계: Gemini AI 모델 초기화 및 대화 기록 준비
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const conversation = userConversations.get(userId)!;
     // Gemini AI 형식에 맞게 대화 기록 변환
     const chatHistory = conversation.map((msg) => ({
-      role: msg.type === 'user' ? 'user' : 'model', // user는 사용자, model은 AI
+      role: msg.type === "user" ? "user" : "model", // user는 사용자, model은 AI
       parts: [{ text: msg.content }], // Gemini AI의 메시지 형식
     }));
 
@@ -115,7 +115,7 @@ async function handleSendMessage(data: {
     const chat = model.startChat({
       history: chatHistory.slice(0, -1), // 마지막 사용자 메시지는 제외 (새로 보낼 예정)
       generationConfig: {
-        maxOutputTokens: 50, // AI 응답을 50 토큰으로 더 짧게 제한
+        maxOutputTokens: 150, // AI 응답을 150 토큰으로 제한
         temperature: 0.8, // 0.8로 설정하여 친근하고 자연스러운 톤 유지
       },
     });
@@ -129,13 +129,32 @@ async function handleSendMessage(data: {
     const response = await result.response;
     const aiContent = response.text();
 
-    // 7단계: AI 응답 길이 제한 (50자 초과 시 자동 자르기)
+    // 7단계: AI 응답 길이 제한 (150글자 이내에서 문장 단위로 자르기)
+    let finalContent = aiContent;
+    if (finalContent.length > 150) {
+      // 150자 이내에서 마지막 문장부호(마침표, 느낌표, 물음표, …, 줄바꿈) 위치 찾기
+      const slice = finalContent.slice(0, 150);
+      const lastPunct = Math.max(
+        slice.lastIndexOf("."),
+        slice.lastIndexOf("!"),
+        slice.lastIndexOf("?"),
+        slice.lastIndexOf("…"),
+        slice.lastIndexOf("\n")
+      );
+      if (lastPunct > 50) {
+        // 문장부호가 50자 이후에 있으면 그 위치까지 자름
+        finalContent = slice.slice(0, lastPunct + 1);
+      } else {
+        // 문장부호가 없거나 너무 앞에 있으면 그냥 150자에서 자름
+        finalContent = slice;
+      }
+    }
 
     // 8단계: AI 응답을 메모리 저장소에 저장
     const aiResponse = {
       id: Date.now() + 1, // 사용자 메시지보다 1 큰 ID
-      type: 'ai' as const, // AI 응답임을 명시
-      content: aiContent, // 길이 제한된 AI 응답
+      type: "ai" as const, // AI 응답임을 명시
+      content: finalContent, // 길이 제한된 AI 응답
       timestamp: new Date(), // 응답 생성 시간
     };
 
@@ -155,10 +174,10 @@ async function handleSendMessage(data: {
       },
     });
   } catch (error) {
-    console.error('AI 응답 생성 오류:', error);
+    console.error("AI 응답 생성 오류:", error);
     return NextResponse.json(
       {
-        error: 'AI 응답을 생성할 수 없습니다.',
+        error: "AI 응답을 생성할 수 없습니다.",
       },
       { status: 500 }
     );
@@ -206,7 +225,7 @@ async function handleAnalyzeEmotion(data: { userId: string }) {
     if (conversations.length === 0) {
       return NextResponse.json(
         {
-          error: '분석할 대화가 없습니다.',
+          error: "분석할 대화가 없습니다.",
         },
         { status: 400 }
       );
@@ -221,10 +240,10 @@ async function handleAnalyzeEmotion(data: { userId: string }) {
     // 3단계: 대화 내용을 텍스트로 변환
     const conversationText = todayConversations
       .map((msg) => `${msg.type}: ${msg.content}`) // "user: 안녕하세요", "ai: 안녕!" 형태로 변환
-      .join('\n'); // 줄바꿈으로 구분
+      .join("\n"); // 줄바꿈으로 구분
 
     // 4단계: Gemini AI 모델 초기화
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     // 5단계: 감정 분석을 위한 프롬프트 생성
     const prompt = `다음 대화를 분석하고 사용자의 감정 상태를 6가지 중 하나로 분류해주세요:
@@ -246,10 +265,10 @@ ${conversationText}`;
       success: true, // 성공 상태
     });
   } catch (error) {
-    console.error('감정 분석 오류:', error);
+    console.error("감정 분석 오류:", error);
     return NextResponse.json(
       {
-        error: '감정 분석을 수행할 수 없습니다.',
+        error: "감정 분석을 수행할 수 없습니다.",
       },
       { status: 500 }
     );

@@ -1,20 +1,20 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { loadSettings } from '@/lib/settings';
-import { getPersonalityById, AIPersonality } from '@/lib/ai-personalities';
-import { loadConversationHistory, sendChatMessage } from '@/lib/chat-service';
-import type { Message } from '@/lib/chat-types';
-import ChatHeader from '@/app/(layout)/chat/components/ChatHeader';
-import MessageList from '@/app/(layout)/chat/components/MessageList';
-import ChatInput from '@/app/(layout)/chat/components/ChatInput';
+import { useState, useEffect } from "react";
+import { loadSettings } from "@/lib/settings";
+import { getPersonalityById, AIPersonality } from "@/lib/ai-personalities";
+import { loadConversationHistory, sendChatMessage } from "@/lib/chat-service";
+import type { Message } from "@/lib/chat-types";
+import ChatHeader from "@/app/(layout)/chat/components/ChatHeader";
+import MessageList from "@/app/(layout)/chat/components/MessageList";
+import ChatInput from "@/app/(layout)/chat/components/ChatInput";
 
 export default function ChatTab() {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [inputMessage, setInputMessage] = useState('');
+  const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [userId] = useState(`user_${Date.now()}`);
-  const [currentPersonalityId, setCurrentPersonalityId] = useState<string>('');
+  const [currentPersonalityId, setCurrentPersonalityId] = useState<string>("");
   const [currentPersonality, setCurrentPersonality] =
     useState<AIPersonality | null>(null);
   const [lastMidnight, setLastMidnight] = useState<Date>(new Date());
@@ -32,7 +32,7 @@ export default function ChatTab() {
       if (conversations.length === 0 && personality) {
         const welcomeMessage = {
           id: Date.now(),
-          type: 'ai' as const,
+          type: "ai" as const,
           content: `안녕! 나는 ${personality.name}야! ${personality.shortDescription}`,
           timestamp: new Date(),
         };
@@ -48,7 +48,7 @@ export default function ChatTab() {
   // 설정 변경 감지
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'mooda_ai_settings' && e.newValue) {
+      if (e.key === "mooda_ai_settings" && e.newValue) {
         try {
           const newSettings = JSON.parse(e.newValue);
           setCurrentPersonalityId(newSettings.selectedPersonalityId);
@@ -57,13 +57,13 @@ export default function ChatTab() {
           );
           setCurrentPersonality(personality || null);
         } catch (error) {
-          console.error('설정 변경 감지 오류:', error);
+          console.error("설정 변경 감지 오류:", error);
         }
       }
     };
 
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
   // 자정 체크
@@ -90,11 +90,11 @@ export default function ChatTab() {
     if (!inputMessage.trim() || isLoading) return;
 
     const message = inputMessage.trim();
-    setInputMessage('');
+    setInputMessage("");
 
     const userMessage = {
       id: Date.now(),
-      type: 'user' as const,
+      type: "user" as const,
       content: message,
       timestamp: new Date(),
     };
@@ -116,14 +116,14 @@ export default function ChatTab() {
           ...prev,
           {
             id: Date.now(),
-            type: 'ai',
-            content: '죄송합니다. 메시지를 처리하는 중 오류가 발생했습니다.',
+            type: "ai",
+            content: "죄송합니다. 메시지를 처리하는 중 오류가 발생했습니다.",
             timestamp: new Date(),
           },
         ]);
       }
     } catch (error) {
-      console.error('메시지 전송 오류:', error);
+      console.error("메시지 전송 오류:", error);
     } finally {
       setIsLoading(false);
     }

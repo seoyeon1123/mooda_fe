@@ -115,7 +115,7 @@ async function handleSendMessage(data: {
     const chat = model.startChat({
       history: chatHistory.slice(0, -1), // 마지막 사용자 메시지는 제외 (새로 보낼 예정)
       generationConfig: {
-        maxOutputTokens: 50, // AI 응답을 50 토큰으로 더 짧게 제한
+        maxOutputTokens: 150, // AI 응답을 150 토큰으로 제한
         temperature: 0.8, // 0.8로 설정하여 친근하고 자연스러운 톤 유지
       },
     });
@@ -129,15 +129,32 @@ async function handleSendMessage(data: {
     const response = await result.response;
     const aiContent = response.text();
 
-    // 7단계: AI 응답 길이 제한 (50자 초과 시 자동 자르기)
-    const shortResponse =
-      aiContent.length > 50 ? aiContent.substring(0, 50) + "..." : aiContent;
+    // 7단계: AI 응답 길이 제한 (150글자 이내에서 문장 단위로 자르기)
+    let finalContent = aiContent;
+    if (finalContent.length > 150) {
+      // 150자 이내에서 마지막 문장부호(마침표, 느낌표, 물음표, …, 줄바꿈) 위치 찾기
+      const slice = finalContent.slice(0, 150);
+      const lastPunct = Math.max(
+        slice.lastIndexOf("."),
+        slice.lastIndexOf("!"),
+        slice.lastIndexOf("?"),
+        slice.lastIndexOf("…"),
+        slice.lastIndexOf("\n")
+      );
+      if (lastPunct > 50) {
+        // 문장부호가 50자 이후에 있으면 그 위치까지 자름
+        finalContent = slice.slice(0, lastPunct + 1);
+      } else {
+        // 문장부호가 없거나 너무 앞에 있으면 그냥 150자에서 자름
+        finalContent = slice;
+      }
+    }
 
     // 8단계: AI 응답을 메모리 저장소에 저장
     const aiResponse = {
       id: Date.now() + 1, // 사용자 메시지보다 1 큰 ID
       type: "ai" as const, // AI 응답임을 명시
-      content: shortResponse, // 길이 제한된 AI 응답
+      content: finalContent, // 길이 제한된 AI 응답
       timestamp: new Date(), // 응답 생성 시간
     };
 

@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect } from 'react';
 import {
   User,
   Bell,
@@ -8,36 +8,31 @@ import {
   HelpCircle,
   LogOut,
   Bot,
-  Edit3,
   Camera,
-} from "lucide-react";
-import type { AIPersonality } from "@/lib/ai-personalities";
-import { loadSettings } from "@/lib/settings";
-import { AI_PERSONALITIES } from "@/lib/ai-personalities";
-import PersonalitySelector from "./components/PersonalitySelector";
-import MooIcon from "./components/MooIcon";
+} from 'lucide-react';
+import type { AIPersonality } from '@/lib/ai-personalities';
+import { loadSettings } from '@/lib/settings';
+import { AI_PERSONALITIES } from '@/lib/ai-personalities';
+import PersonalitySelector from './components/PersonalitySelector';
+import MooIcon from './components/MooIcon';
+import { signOut } from 'next-auth/react';
+import useUserStore from '@/store/userStore';
+import Image from 'next/image';
 
 export default function SettingsPage() {
   const [showPersonalitySelector, setShowPersonalitySelector] = useState(false);
   const [selectedPersonality, setSelectedPersonality] =
     useState<AIPersonality | null>(null);
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [userName, setUserName] = useState("사용자");
-  const [editName, setEditName] = useState(userName);
-
+  const user = useUserStore((state) => state.user);
+  const clearUser = useUserStore((state) => state.clearUser);
   const handlePersonalityChange = (personality: AIPersonality) => {
     setSelectedPersonality(personality);
     setShowPersonalitySelector(false);
   };
 
   const handleKakaoLogout = () => {
-    console.log("카카오 로그아웃");
-    // 로그아웃 로직 구현 예정
-  };
-
-  const handleSaveName = () => {
-    setUserName(editName);
-    setIsEditingName(false);
+    clearUser();
+    signOut({ callbackUrl: '/?logout=true' });
   };
 
   useEffect(() => {
@@ -89,42 +84,25 @@ export default function SettingsPage() {
         <div className="bg-white/60 rounded-xl p-4">
           <div className="flex items-center space-x-4">
             <div className="relative">
-              <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center">
-                <User size={24} className="text-white" />
-              </div>
+              {user?.image ? (
+                <Image
+                  src={user.image}
+                  alt="profile"
+                  width={50}
+                  height={50}
+                  className="rounded-full"
+                />
+              ) : (
+                <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center">
+                  <User size={20} className="text-gray-400" />
+                </div>
+              )}
               <button className="absolute -bottom-1 -right-1 w-6 h-6 bg-white rounded-full shadow-lg flex items-center justify-center border border-gray-200">
                 <Camera size={12} className="text-gray-600" />
               </button>
             </div>
-            <div className="flex-1">
-              {isEditingName ? (
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="text"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    className="font-semibold text-gray-800 bg-gray-50 rounded-lg px-2 py-1 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500"
-                    autoFocus
-                  />
-                  <button
-                    onClick={handleSaveName}
-                    className="px-2 py-1 bg-green-500 text-white rounded-lg text-sm"
-                  >
-                    저장
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center space-x-2">
-                  <h3 className="font-semibold text-gray-800">{userName}</h3>
-                  <button
-                    onClick={() => setIsEditingName(true)}
-                    className="p-1 hover:bg-gray-100 rounded-full"
-                  >
-                    <Edit3 size={14} className="text-gray-500" />
-                  </button>
-                </div>
-              )}
-              <p className="text-sm text-gray-500">카카오 계정으로 로그인됨</p>
+            <div className="flex flex-col">
+              <span className="font-semibold text-lg">{user?.name}</span>
             </div>
           </div>
         </div>

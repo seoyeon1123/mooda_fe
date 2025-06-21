@@ -1,12 +1,26 @@
-"use client";
+'use client';
 
-import Image from "next/image";
-import { Logo } from "@/components/ui/Logo";
+import Image from 'next/image';
+import { signIn } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+
+import { Logo } from '@/components/ui/Logo';
 
 export default function HomePage() {
-  const handleKakaoLogin = () => {
-    // 카카오 로그인 로직 구현 예정
-    console.log("카카오 로그인 시작");
+  const router = useRouter();
+  const handleKakaoLogin = async () => {
+    try {
+      const result = await signIn('kakao', {
+        redirect: false,
+        callbackUrl: '/',
+      });
+
+      if (result?.ok) {
+        router.push('/chat');
+      }
+    } catch (error) {
+      console.error('카카오 로그인 실패:', error);
+    }
   };
 
   return (

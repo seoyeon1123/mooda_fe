@@ -22,7 +22,7 @@ function StoreHydrator({ children }: { children: ReactNode }) {
         image: sessionUser.image || '',
       });
     }
-  }, [session]); // ❗ user는 deps에서 제외
+  }, [session, user, setUser]);
 
   return <>{children}</>;
 }

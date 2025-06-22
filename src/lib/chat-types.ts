@@ -1,8 +1,9 @@
 export interface Message {
-  id: number;
-  type: 'user' | 'ai';
+  id: string;
+  role: 'user' | 'ai' | 'system';
   content: string;
-  timestamp: Date;
+  createdAt: Date;
+  userId?: string;
 }
 
 export interface ChatState {
@@ -16,10 +17,3 @@ export interface ChatState {
 }
 
 import { AIPersonality } from './ai-personalities';
-
-export const formatTime = (timestamp: Date) => {
-  return new Date(timestamp).toLocaleTimeString('ko-KR', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};

@@ -1,31 +1,18 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import { AI_PERSONALITIES, type AIPersonality } from "@/lib/ai-personalities";
-import { loadSettings, updatePersonality } from "@/lib/settings";
-import { Check } from "lucide-react";
-import MooIcon from "./MooIcon";
+import { AI_PERSONALITIES, type AIPersonality } from '@/lib/ai-personalities';
+import { Check } from 'lucide-react';
+import MooIcon from './MooIcon';
 
 interface PersonalitySelectorProps {
-  onPersonalityChange?: (personality: AIPersonality) => void;
+  selectedId: string;
+  onPersonalityChange: (personality: AIPersonality) => void;
 }
 
 export default function PersonalitySelector({
+  selectedId,
   onPersonalityChange,
 }: PersonalitySelectorProps) {
-  const [selectedId, setSelectedId] = useState<string>("");
-
-  useEffect(() => {
-    const settings = loadSettings();
-    setSelectedId(settings.selectedPersonalityId);
-  }, []);
-
-  const handlePersonalitySelect = (personality: AIPersonality) => {
-    setSelectedId(personality.id);
-    updatePersonality(personality.id);
-    onPersonalityChange?.(personality);
-  };
-
   return (
     <div className="space-y-3">
       {AI_PERSONALITIES.map((personality) => (
@@ -35,11 +22,11 @@ export default function PersonalitySelector({
             relative bg-white/60 rounded-xl p-5 cursor-pointer transition-all duration-200 active:scale-95
             ${
               selectedId === personality.id
-                ? "bg-green-50 border-2 border-green-300 shadow-md"
-                : "border border-gray-200 hover:bg-white/80 hover:shadow-sm"
+                ? 'bg-green-50 border-2 border-green-300 shadow-md'
+                : 'border border-gray-200 hover:bg-white/80 hover:shadow-sm'
             }
           `}
-          onClick={() => handlePersonalitySelect(personality)}
+          onClick={() => onPersonalityChange(personality)}
         >
           {/* Selection Indicator */}
           {selectedId === personality.id && (

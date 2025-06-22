@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   User,
   Bell,
@@ -11,8 +11,7 @@ import {
   Camera,
 } from 'lucide-react';
 import type { AIPersonality } from '@/lib/ai-personalities';
-import { loadSettings } from '@/lib/settings';
-import { AI_PERSONALITIES } from '@/lib/ai-personalities';
+import { getPersonalityById } from '@/lib/ai-personalities';
 import PersonalitySelector from './components/PersonalitySelector';
 import MooIcon from './components/MooIcon';
 import { signOut } from 'next-auth/react';
@@ -21,12 +20,12 @@ import Image from 'next/image';
 
 export default function SettingsPage() {
   const [showPersonalitySelector, setShowPersonalitySelector] = useState(false);
-  const [selectedPersonality, setSelectedPersonality] =
-    useState<AIPersonality | null>(null);
-  const user = useUserStore((state) => state.user);
-  const clearUser = useUserStore((state) => state.clearUser);
+  const { user, selectedPersonalityId, setSelectedPersonalityId, clearUser } =
+    useUserStore();
+  const selectedPersonality = getPersonalityById(selectedPersonalityId);
+
   const handlePersonalityChange = (personality: AIPersonality) => {
-    setSelectedPersonality(personality);
+    setSelectedPersonalityId(personality.id);
     setShowPersonalitySelector(false);
   };
 
@@ -34,16 +33,6 @@ export default function SettingsPage() {
     clearUser();
     signOut({ callbackUrl: '/?logout=true' });
   };
-
-  useEffect(() => {
-    const settings = loadSettings();
-    const personality = AI_PERSONALITIES.find(
-      (p) => p.id === settings.selectedPersonalityId
-    );
-    if (personality) {
-      setSelectedPersonality(personality);
-    }
-  }, []);
 
   if (showPersonalitySelector) {
     return (
@@ -65,7 +54,10 @@ export default function SettingsPage() {
 
         {/* Content */}
         <div className="flex-1 p-4">
-          <PersonalitySelector onPersonalityChange={handlePersonalityChange} />
+          <PersonalitySelector
+            selectedId={selectedPersonalityId}
+            onPersonalityChange={handlePersonalityChange}
+          />
         </div>
       </div>
     );

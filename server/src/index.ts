@@ -59,7 +59,11 @@ app.post(
         data: { refreshToken },
       });
 
-      res.status(200).json({ accessToken, refreshToken });
+      res.status(200).json({
+        userId: userUpserted.id,
+        accessToken,
+        refreshToken,
+      });
     } catch (error) {
       console.error('Login/Register Error:', error);
       res.status(500).json({ error: 'Internal server error' });

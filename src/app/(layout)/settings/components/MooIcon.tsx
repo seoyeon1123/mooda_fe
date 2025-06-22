@@ -1,18 +1,36 @@
+'use client';
+import React, { useEffect, useState } from 'react';
+
 interface MooIconProps {
-  type: "friendly" | "wise" | "energetic" | "calm";
+  type: 'friendly' | 'wise' | 'energetic' | 'calm';
   size?: number;
 }
 
-export default function MooIcon({ type, size = 48 }: MooIconProps) {
-  const iconStyle = {
+export default function MooIcon({ type, size = 40 }: MooIconProps) {
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  if (!isMounted) {
+    return (
+      <div
+        style={{ width: size, height: size }}
+        className="bg-gray-200 rounded-full"
+      ></div>
+    );
+  }
+
+  const iconStyles = {
     width: size,
     height: size,
   };
 
   switch (type) {
-    case "friendly":
+    case 'friendly':
       return (
-        <svg style={iconStyle} viewBox="0 0 48 48" fill="none">
+        <svg style={iconStyles} viewBox="0 0 48 48" fill="none">
           {/* 소 얼굴 */}
           <circle
             cx="24"
@@ -57,9 +75,9 @@ export default function MooIcon({ type, size = 48 }: MooIconProps) {
         </svg>
       );
 
-    case "wise":
+    case 'wise':
       return (
-        <svg style={iconStyle} viewBox="0 0 48 48" fill="none">
+        <svg style={iconStyles} viewBox="0 0 48 48" fill="none">
           {/* 소 얼굴 */}
           <circle
             cx="24"
@@ -127,9 +145,9 @@ export default function MooIcon({ type, size = 48 }: MooIconProps) {
         </svg>
       );
 
-    case "energetic":
+    case 'energetic':
       return (
-        <svg style={iconStyle} viewBox="0 0 48 48" fill="none">
+        <svg style={iconStyles} viewBox="0 0 48 48" fill="none">
           {/* 소 얼굴 */}
           <circle
             cx="24"
@@ -182,9 +200,9 @@ export default function MooIcon({ type, size = 48 }: MooIconProps) {
         </svg>
       );
 
-    case "calm":
+    case 'calm':
       return (
-        <svg style={iconStyle} viewBox="0 0 48 48" fill="none">
+        <svg style={iconStyles} viewBox="0 0 48 48" fill="none">
           {/* 소 얼굴 */}
           <circle
             cx="24"

@@ -1,28 +1,33 @@
-import 'next-auth';
-import 'next-auth/jwt';
+import { DefaultSession, DefaultUser } from 'next-auth';
+import { DefaultJWT } from 'next-auth/jwt';
 
 declare module 'next-auth' {
   /**
    * Returned by `useSession`, `getSession` and received as a prop on the `SessionProvider` React Context
    */
   interface Session {
-    accessToken?: string;
-    refreshToken?: string;
-    error?: string;
     user: {
-      /** The user's kakao ID. */
-      kakaoId?: string | number;
+      id: string;
+      kakaoId?: string | number | null;
       name?: string | null;
       email?: string | null;
       image?: string | null;
-    } & import('next-auth').DefaultSession['user'];
+    } & DefaultSession['user'];
+    accessToken?: string;
+    refreshToken?: string;
+    error?: string;
+  }
+
+  interface User extends DefaultUser {
+    kakaoId?: string | number | null;
   }
 }
 
 declare module 'next-auth/jwt' {
   /** Returned by the `jwt` callback and `getToken`, when using JWT sessions */
-  interface JWT {
-    kakaoId?: string | number;
+  interface JWT extends DefaultJWT {
+    userId?: string;
+    kakaoId?: string | number | null;
     accessToken?: string;
     refreshToken?: string;
     accessTokenExpires?: number;

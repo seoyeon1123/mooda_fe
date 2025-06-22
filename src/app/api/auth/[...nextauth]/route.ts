@@ -26,6 +26,7 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
       accessToken: refreshedTokens.accessToken,
       accessTokenExpires: Date.now() + 3600 * 1000, // 1 hour
       refreshToken: refreshedTokens.refreshToken ?? token.refreshToken, // Fall back to old refresh token
+      userId: token.userId, // userId 유지
     };
   } catch (error) {
     console.error('RefreshAccessTokenError', error);
@@ -62,12 +63,13 @@ const authOptions: NextAuthOptions = {
           });
 
           if (response.ok) {
-            const tokens = await response.json();
-            console.log('✅ INITIAL TOKENS RECEIVED:', tokens);
+            const data = await response.json();
+            console.log('✅ INITIAL TOKENS RECEIVED:', data);
             token.kakaoId = user.id;
-            token.accessToken = tokens.accessToken;
-            token.refreshToken = tokens.refreshToken;
+            token.accessToken = data.accessToken;
+            token.refreshToken = data.refreshToken;
             token.accessTokenExpires = Date.now() + 3600 * 1000; // 1 hour
+            token.userId = data.userId;
             return token;
           } else {
             console.error('Backend login failed:', await response.text());
@@ -83,6 +85,8 @@ const authOptions: NextAuthOptions = {
       // 토큰이 만료되지 않았으면 기존 토큰 반환
       if (token.accessTokenExpires && Date.now() < token.accessTokenExpires) {
         console.log('EXISTING TOKEN IS VALID');
+        // 이전 에러 상태가 남아있을 수 있으므로 클리어해줍니다.
+        delete token.error;
         return token;
       }
 
@@ -92,7 +96,8 @@ const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       console.log('SESSION CALLBACK - Populating session with token:', token);
-      if (token) {
+      if (token && session.user) {
+        session.user.id = token.userId as string;
         session.user.kakaoId = token.kakaoId;
         session.user.name = token.name;
         session.user.email = token.email;

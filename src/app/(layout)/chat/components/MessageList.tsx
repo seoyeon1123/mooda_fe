@@ -1,5 +1,7 @@
-import { Message, formatTime } from "@/lib/chat-types";
-import { useEffect, useRef } from "react";
+'use client';
+
+import { Message } from '@/lib/chat-types';
+import { useEffect, useRef } from 'react';
 
 interface MessageListProps {
   messages: Message[];
@@ -10,12 +12,21 @@ export default function MessageList({ messages, isLoading }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // 시간 포맷팅 함수
+  const formatTime = (date: Date) => {
+    return new Date(date).toLocaleTimeString('ko-KR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+  };
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
@@ -30,31 +41,45 @@ export default function MessageList({ messages, isLoading }: MessageListProps) {
         </div>
       )}
 
-      {messages.map((message) => (
-        <div
-          key={message.id}
-          className={`flex ${
-            message.type === "user" ? "justify-end" : "justify-start"
-          }`}
-        >
+      {messages.map((message) => {
+        if (message.role === 'system') {
+          return (
+            <div
+              key={message.id}
+              className="text-center text-sm text-gray-500 py-2"
+            >
+              <span>{message.content}</span>
+            </div>
+          );
+        }
+
+        const isUserMessage = message.role === 'user';
+        return (
           <div
-            className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-              message.type === "user"
-                ? "bg-blue-500 text-white"
-                : "bg-white text-gray-800 shadow-sm border"
+            key={message.id}
+            className={`flex ${
+              isUserMessage ? 'justify-end' : 'justify-start'
             }`}
           >
-            <div className="text-sm">{message.content}</div>
             <div
-              className={`text-xs mt-1 ${
-                message.type === "user" ? "text-blue-100" : "text-gray-500"
+              className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                isUserMessage
+                  ? 'bg-green-600 text-white'
+                  : 'bg-white text-gray-800 shadow-sm border'
               }`}
             >
-              {formatTime(message.timestamp)}
+              <div className="text-sm">{message.content}</div>
+              <div
+                className={`text-xs mt-1 ${
+                  isUserMessage ? 'text-green-100' : 'text-gray-400'
+                }`}
+              >
+                {formatTime(message.createdAt)}
+              </div>
             </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
 
       {isLoading && (
         <div className="flex justify-start">
@@ -64,11 +89,11 @@ export default function MessageList({ messages, isLoading }: MessageListProps) {
                 <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
                 <div
                   className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                  style={{ animationDelay: "0.1s" }}
+                  style={{ animationDelay: '0.1s' }}
                 ></div>
                 <div
                   className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                  style={{ animationDelay: "0.2s" }}
+                  style={{ animationDelay: '0.2s' }}
                 ></div>
               </div>
               <span className="text-sm text-gray-500">

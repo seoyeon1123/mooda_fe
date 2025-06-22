@@ -1,7 +1,19 @@
 import { Message } from './chat-types';
 
+export interface ChatResponse {
+  userMessage: Message;
+  aiResponse: Message;
+  success: boolean;
+  personality: {
+    id: string;
+    name: string;
+    icon: string;
+  };
+}
+
 export const loadConversationHistory = async (
-  userId: string
+  userId: string,
+  personalityId: string
 ): Promise<Message[]> => {
   try {
     const response = await fetch('/api/socket', {
@@ -11,7 +23,7 @@ export const loadConversationHistory = async (
       },
       body: JSON.stringify({
         action: 'get-conversation-history',
-        data: { userId },
+        data: { userId, personalityId },
       }),
     });
 
@@ -32,7 +44,7 @@ export const sendChatMessage = async (
   message: string,
   userId: string,
   personalityId: string
-): Promise<Message | null> => {
+): Promise<ChatResponse | null> => {
   try {
     const response = await fetch('/api/socket', {
       method: 'POST',
@@ -53,9 +65,9 @@ export const sendChatMessage = async (
       throw new Error('메시지 전송 실패');
     }
 
-    const result = await response.json();
+    const result: ChatResponse = await response.json();
     if (result.success) {
-      return result.aiResponse;
+      return result;
     }
     return null;
   } catch (error) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { Conversation } from '@prisma/client';
 import {
   getPersonalityById,
   getDefaultPersonality,
@@ -125,7 +126,7 @@ async function handleSendMessage(data: SendMessageData) {
       orderBy: { createdAt: 'asc' },
       take: 20,
     });
-    const chatHistory = conversationHistory.map((msg) => ({
+    const chatHistory = conversationHistory.map((msg: Conversation) => ({
       role: msg.role === 'user' ? 'user' : 'model',
       parts: [{ text: msg.content }],
     }));

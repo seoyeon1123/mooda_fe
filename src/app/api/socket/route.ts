@@ -4,11 +4,30 @@ import {
   getPersonalityById,
   getDefaultPersonality,
 } from '@/lib/ai-personalities';
-import prisma from '@/../server/src/lib/prisma';
+import prisma from '@/lib/prisma';
 
 // Google Gemini AI 클라이언트 초기화
 // 환경변수에서 API 키를 가져와서 Gemini AI 서비스에 연결
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+
+interface SendMessageData {
+  userId: string;
+  message: string;
+  personalityId?: string;
+}
+
+interface AnalyzeEmotionData {
+  userId: string;
+}
+
+interface GetHistoryData {
+  userId: string;
+}
+
+interface RequestBody {
+  action: 'send-message' | 'analyze-emotion' | 'get-conversation-history';
+  data: SendMessageData | AnalyzeEmotionData | GetHistoryData;
+}
 
 /**
  * GET 요청 처리 - 서버 상태 확인용
@@ -27,23 +46,28 @@ export async function GET() {
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { action, data } = body;
+    const { action, data }: RequestBody = await request.json();
 
     // action 타입에 따라 적절한 함수 호출
     switch (action) {
-      case 'send-message': // AI와 대화하기
-        return await handleSendMessage(data);
-      case 'analyze-emotion': // 감정 분석하기
-        return await handleAnalyzeEmotion(data);
-      case 'get-conversation-history': // 대화 기록 불러오기
-        return await getConversationHistory(data);
+      case 'send-message':
+        return await handleSendMessage(data as SendMessageData);
+      case 'analyze-emotion':
+        return await handleAnalyzeEmotion(data as AnalyzeEmotionData);
+      case 'get-conversation-history':
+        return await getConversationHistory(data as GetHistoryData);
       default:
-        return NextResponse.json({ error: '알 수 없는 액션' }, { status: 400 });
+        return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
     }
   } catch (error) {
-    console.error('API 오류:', error);
-    return NextResponse.json({ error: '서버 오류' }, { status: 500 });
+    console.error('API Error:', error);
+    if (error instanceof SyntaxError) {
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    }
+    return NextResponse.json(
+      { error: 'An internal server error occurred' },
+      { status: 500 }
+    );
   }
 }
 
@@ -62,12 +86,15 @@ export async function POST(request: NextRequest) {
  * @param data - { message: 사용자 메시지, userId: 사용자 ID, personalityId?: AI 성격 ID }
  * @returns 사용자 메시지와 AI 응답
  */
-async function handleSendMessage(data: {
-  message: string;
-  userId: string;
-  personalityId?: string;
-}) {
+async function handleSendMessage(data: SendMessageData) {
   const { message, userId, personalityId } = data;
+
+  if (!message || !userId) {
+    return NextResponse.json(
+      { error: 'Message and userId are required' },
+      { status: 400 }
+    );
+  }
 
   try {
     // 1. 사용자 메시지를 DB에 저장
@@ -82,8 +109,14 @@ async function handleSendMessage(data: {
 
     // 2. AI 성격 설정 가져오기
     const personality = personalityId
-      ? getPersonalityById(personalityId) || getDefaultPersonality()
+      ? getPersonalityById(personalityId)
       : getDefaultPersonality();
+    if (!personality) {
+      return NextResponse.json(
+        { error: 'Invalid personality ID' },
+        { status: 400 }
+      );
+    }
 
     // 3. DB에서 최근 대화 기록 조회
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
@@ -104,7 +137,7 @@ async function handleSendMessage(data: {
     });
     const systemPrompt = personality.systemPrompt;
     const result = await chat.sendMessage([systemPrompt, message]);
-    const response = await result.response;
+    const response = result.response;
     const aiContent = response.text();
 
     // 5. AI 응답 길이 제한
@@ -143,9 +176,9 @@ async function handleSendMessage(data: {
       },
     });
   } catch (error) {
-    console.error('AI 응답 생성 오류:', error);
+    console.error('Send message error:', error);
     return NextResponse.json(
-      { error: 'AI 응답을 생성할 수 없습니다.' },
+      { error: 'Failed to generate AI response' },
       { status: 500 }
     );
   }
@@ -159,26 +192,32 @@ async function handleSendMessage(data: {
  * @param data - { userId: 사용자 ID }
  * @returns 해당 사용자의 모든 대화 기록
  */
-async function getConversationHistory(data: { userId: string }) {
+async function getConversationHistory(data: GetHistoryData) {
   const { userId } = data;
+
+  if (!userId) {
+    return NextResponse.json({ error: 'userId is required' }, { status: 400 });
+  }
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const conversations = await prisma.conversation.findMany({
-    where: {
-      userId,
-      createdAt: {
-        gte: today,
+  try {
+    const conversations = await prisma.conversation.findMany({
+      where: {
+        userId,
+        createdAt: { gte: today },
       },
-    },
-    orderBy: { createdAt: 'asc' },
-  });
-
-  return NextResponse.json({
-    conversations,
-    success: true,
-  });
+      orderBy: { createdAt: 'asc' },
+    });
+    return NextResponse.json({ conversations, success: true });
+  } catch (error) {
+    console.error('Get conversation history error:', error);
+    return NextResponse.json(
+      { error: 'Failed to retrieve conversation history' },
+      { status: 500 }
+    );
+  }
 }
 
 /**
@@ -192,25 +231,27 @@ async function getConversationHistory(data: { userId: string }) {
  * @param data - { userId: 사용자 ID }
  * @returns 감정 분석 결과 (감정, 요약, 하이라이트)
  */
-async function handleAnalyzeEmotion(data: { userId: string }) {
+async function handleAnalyzeEmotion(data: AnalyzeEmotionData) {
   const { userId } = data;
 
-  try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+  if (!userId) {
+    return NextResponse.json({ error: 'userId is required' }, { status: 400 });
+  }
 
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  try {
     const conversations = await prisma.conversation.findMany({
       where: {
         userId,
-        createdAt: {
-          gte: today,
-        },
+        createdAt: { gte: today },
       },
     });
 
     if (conversations.length === 0) {
       return NextResponse.json(
-        { error: '분석할 대화가 없습니다.' },
+        { error: 'No conversations to analyze' },
         { status: 400 }
       );
     }
@@ -220,23 +261,22 @@ async function handleAnalyzeEmotion(data: { userId: string }) {
       .join('\n');
 
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    const prompt = `다음 대화를 분석하고 사용자의 감정 상태를 6가지 중 하나로 분류해주세요:
-    1. VeryHappy (매우 기쁨) 2. Happy (기쁨) 3. Neutral (무감정) 4. Sad (슬픔) 5. VerySad (매우 슬픔) 6. Angry (화남)
+    const prompt = `Analyze the user's emotional state from the following conversation and classify it into one of these 6 categories: VeryHappy, Happy, Neutral, Sad, VerySad, Angry.
     
-    분석 후, 다음 JSON 형식에 맞춰 응답해주세요:
+    Respond in the following JSON format:
     {
-      "emotion": "분류된 감정 (예: Happy)",
-      "summary": "오늘 대화에 대한 1~2문장의 짧은 요약",
-      "highlight": "가장 인상적이거나 감정이 잘 드러난 대화 한두 개"
+      "emotion": "Classified emotion (e.g., Happy)",
+      "summary": "A short 1-2 sentence summary of today's conversation.",
+      "highlight": "One or two memorable lines from the conversation that best represent the emotion."
     }
     
-    --- 대화 내용 ---
+    --- Conversation ---
     ${conversationText}
-    --- 종료 ---
+    --- End ---
     `;
 
     const result = await model.generateContent(prompt);
-    const response = await result.response;
+    const response = result.response;
     const jsonString = response
       .text()
       .replace(/```json|```/g, '')
@@ -245,9 +285,15 @@ async function handleAnalyzeEmotion(data: { userId: string }) {
 
     return NextResponse.json({ ...analysisResult, success: true });
   } catch (error) {
-    console.error('감정 분석 오류:', error);
+    console.error('Analyze emotion error:', error);
+    if (error instanceof SyntaxError) {
+      return NextResponse.json(
+        { error: 'Failed to parse AI analysis response' },
+        { status: 500 }
+      );
+    }
     return NextResponse.json(
-      { error: '감정을 분석할 수 없습니다.' },
+      { error: 'Failed to analyze emotion' },
       { status: 500 }
     );
   }

@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 
 interface MooIconProps {
-  type: 'friendly' | 'wise' | 'energetic' | 'calm';
+  type: 'friendly' | 'wise' | 'energetic' | 'calm' | 'user' | 'default';
   size?: number;
 }
 
@@ -28,6 +28,7 @@ export default function MooIcon({ type, size = 40 }: MooIconProps) {
   };
 
   switch (type) {
+    case 'default':
     case 'friendly':
       return (
         <svg style={iconStyles} viewBox="0 0 48 48" fill="none">
@@ -258,6 +259,27 @@ export default function MooIcon({ type, size = 40 }: MooIconProps) {
           <path
             d="M 36 18 C 36 16 34 14 32 16 C 30 14 28 16 28 18 C 28 20 32 24 32 24 C 32 24 36 20 36 18 Z"
             fill="#FF69B4"
+          />
+        </svg>
+      );
+
+    case 'user':
+      return (
+        <svg style={iconStyles} viewBox="0 0 48 48" fill="none">
+          <circle
+            cx="24"
+            cy="24"
+            r="20"
+            fill="#E0E0E0"
+            stroke="#BDBDBD"
+            strokeWidth="2"
+          />
+          <circle cx="24" cy="20" r="5" fill="#BDBDBD" />
+          <path
+            d="M 16 36 Q 24 28 32 36"
+            stroke="#BDBDBD"
+            strokeWidth="3"
+            fill="none"
           />
         </svg>
       );

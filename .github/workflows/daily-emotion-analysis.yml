@@ -9,43 +9,54 @@ on:
 jobs:
   daily-emotion-analysis:
     runs-on: ubuntu-latest
-    
+
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: mooda
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        
-    - name: Install dependencies
-      run: |
-        cd server
-        npm ci
-        
-    - name: Run Prisma generate
-      run: |
-        cd server
-        npx prisma generate
-        
-    - name: Run daily emotion analysis
-      env:
-        DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      run: |
-        cd server
-        node -e "
-        import('./src/lib/scheduler.js').then(({ scheduleDailyEmotionSummary }) => {
-          console.log('Starting daily emotion analysis...');
-          scheduleDailyEmotionSummary()
-            .then(() => {
-              console.log('Daily emotion analysis completed successfully');
-              process.exit(0);
-            })
-            .catch((error) => {
-              console.error('Daily emotion analysis failed:', error);
-              process.exit(1);
-            });
-        });
-        " 
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: |
+          cd server
+          npm ci
+
+      - name: Run Prisma migration
+        env:
+          DATABASE_URL: postgresql://user:password@localhost:5432/mooda?schema=public
+        run: |
+          cd server
+          npx prisma migrate deploy
+
+      - name: Run Prisma generate
+        env:
+          DATABASE_URL: postgresql://user:password@localhost:5432/mooda?schema=public
+        run: |
+          cd server
+          npx prisma generate
+
+      - name: Run daily emotion analysis
+        env:
+          DATABASE_URL: postgresql://user:password@localhost:5432/mooda?schema=public
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          cd server
+          npx tsx src/lib/scheduler.ts

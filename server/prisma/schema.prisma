@@ -44,8 +44,11 @@ model EmotionLog {
   userId    String   @map("user_id")
   date      DateTime @db.Date
   summary   String
+  shortSummary String @map("short_summary")
+  characterName String @map("character_name")
   emotion   String
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("emotion_logs")
+  @@unique([userId, date])
 }

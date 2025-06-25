@@ -1,9 +1,27 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import EmotionCalendar from '@/app/(layout)/calendar/components/EmotionCalendar';
 
 export default function CalendarTab() {
-  const [userId] = useState(`user_${Date.now()}`); // 임시 사용자 ID
+  const { data: session } = useSession();
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (session?.user?.id) {
+      setUserId(session.user.id);
+    }
+  }, [session]);
+
+  if (!userId) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <p className="text-gray-500">로그인이 필요합니다.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">

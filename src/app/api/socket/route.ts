@@ -122,22 +122,36 @@ async function handleSendMessage(data: SendMessageData) {
     // 3. DB에서 최근 대화 기록 조회
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     const conversationHistory = await prisma.conversation.findMany({
-      where: { userId },
+      where: { userId, personalityId },
       orderBy: { createdAt: 'asc' },
       take: 20,
     });
+
+    // 대화 기록을 Gemini 형식으로 변환
     const chatHistory = conversationHistory.map((msg: Conversation) => ({
       role: msg.role === 'user' ? 'user' : 'model',
       parts: [{ text: msg.content }],
     }));
 
-    // 4. AI 채팅 세션 시작 및 응답 생성
+    // 시스템 프롬프트를 첫 번째 메시지로 추가 (대화 기록이 없을 때만)
+    if (chatHistory.length === 0) {
+      chatHistory.unshift({
+        role: 'model',
+        parts: [{ text: personality.systemPrompt }],
+      });
+    }
+
     const chat = model.startChat({
-      history: chatHistory.slice(0, -1),
-      generationConfig: { maxOutputTokens: 150, temperature: 0.8 },
+      history: chatHistory,
+      generationConfig: {
+        maxOutputTokens: 150,
+        temperature: 0.8,
+        topP: 0.9,
+        topK: 40,
+      },
     });
-    const systemPrompt = personality.systemPrompt;
-    const result = await chat.sendMessage([systemPrompt, message]);
+
+    const result = await chat.sendMessage(message);
     const response = result.response;
     const aiContent = response.text();
 

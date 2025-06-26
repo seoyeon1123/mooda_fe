@@ -1,44 +1,61 @@
-import NextAuth from "next-auth";
-import type { NextAuthOptions } from "next-auth";
-import KakaoProvider from "next-auth/providers/kakao";
-import type { JWT } from "next-auth/jwt";
+import NextAuth from 'next-auth';
+import type { NextAuthOptions } from 'next-auth';
+import KakaoProvider from 'next-auth/providers/kakao';
+import type { JWT } from 'next-auth/jwt';
 
 async function refreshAccessToken(token: JWT) {
   try {
-    console.log("🔄 REFRESHING ACCESS TOKEN...");
+    console.log('🔄 REFRESHING ACCESS TOKEN...');
 
     if (!token.refreshToken) {
-      throw new Error("No refresh token available");
+      console.log('❌ NO REFRESH TOKEN AVAILABLE - FORCING LOGOUT');
+      return {
+        ...token,
+        error: 'RefreshAccessTokenError',
+        accessToken: undefined,
+        refreshToken: undefined,
+        accessTokenExpires: undefined,
+      };
     }
 
-    const response = await fetch("http://localhost:8080/api/auth/refresh", {
-      method: "POST",
+    const response = await fetch('http://localhost:8080/api/auth/refresh', {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({ refreshToken: token.refreshToken }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Refresh failed: ${response.status} ${errorText}`);
+      console.log(`❌ REFRESH FAILED: ${response.status} ${errorText}`);
+      return {
+        ...token,
+        error: 'RefreshAccessTokenError',
+        accessToken: undefined,
+        refreshToken: undefined,
+        accessTokenExpires: undefined,
+      };
     }
 
     const refreshedTokens = await response.json();
-    console.log("✅ NEW ACCESS TOKEN RECEIVED");
+    console.log('✅ NEW ACCESS TOKEN RECEIVED');
 
     return {
       ...token,
       accessToken: refreshedTokens.accessToken,
-      accessTokenExpires: Date.now() + 3600 * 1000,
+      accessTokenExpires: Date.now() + 3600 * 1000, // 1시간
       refreshToken: refreshedTokens.refreshToken ?? token.refreshToken,
       error: undefined,
     };
   } catch (error) {
-    console.error("RefreshAccessTokenError", error);
+    console.error('RefreshAccessTokenError', error);
     return {
       ...token,
-      error: "RefreshAccessTokenError",
+      error: 'RefreshAccessTokenError',
+      accessToken: undefined,
+      refreshToken: undefined,
+      accessTokenExpires: undefined,
     };
   }
 }
@@ -55,10 +72,11 @@ const authOptions: NextAuthOptions = {
       // 초기 로그인 시
       if (user && account) {
         try {
-          const response = await fetch("http://localhost:8080/api/auth/login", {
-            method: "POST",
+          console.log('🔑 INITIAL LOGIN - Calling backend login API');
+          const response = await fetch('http://localhost:8080/api/auth/login', {
+            method: 'POST',
             headers: {
-              "Content-Type": "application/json",
+              'Content-Type': 'application/json',
             },
             body: JSON.stringify({
               kakaoId: user.id,
@@ -69,43 +87,55 @@ const authOptions: NextAuthOptions = {
 
           if (response.ok) {
             const data = await response.json();
-            console.log("✅ INITIAL TOKENS RECEIVED:", data);
+            console.log('✅ INITIAL TOKENS RECEIVED');
             return {
               ...token,
               kakaoId: user.id,
               accessToken: data.accessToken,
               refreshToken: data.refreshToken,
-              accessTokenExpires: Date.now() + 3600 * 1000,
+              accessTokenExpires: Date.now() + 3600 * 1000, // 1시간
               userId: data.userId,
             };
           } else {
-            console.error("Backend login failed:", response.status);
-            return { ...token, error: "BackendLoginFailed" };
+            console.error('Backend login failed:', response.status);
+            return { ...token, error: 'BackendLoginFailed' };
           }
         } catch (error) {
-          console.error("Failed to sync user with backend", error);
-          return { ...token, error: "BackendSyncFailed" };
+          console.error('Failed to sync user with backend', error);
+          return { ...token, error: 'BackendSyncFailed' };
         }
       }
 
-      // 토큰 유효성 검사
-      if (token.accessTokenExpires && Date.now() < token.accessTokenExpires) {
-        console.log("EXISTING TOKEN IS VALID");
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { error, ...cleanToken } = token;
-        return cleanToken;
+      // 에러가 있는 경우 그대로 반환 (로그아웃 유도)
+      if (token.error) {
+        console.log('🚫 TOKEN HAS ERROR, RETURNING AS-IS:', token.error);
+        return token;
       }
 
-      console.log("TOKEN EXPIRED, TRYING TO REFRESH...");
+      // 토큰 유효성 검사 - accessTokenExpires가 없으면 즉시 갱신 시도
+      const isTokenValid =
+        token.accessTokenExpires && Date.now() < token.accessTokenExpires;
+
+      if (isTokenValid) {
+        console.log('✅ EXISTING TOKEN IS VALID');
+        return token;
+      }
+
+      console.log('⏰ TOKEN EXPIRED OR MISSING, TRYING TO REFRESH...');
       return await refreshAccessToken(token);
     },
 
     async session({ session, token }) {
-      console.log("SESSION CALLBACK - Token:", token);
+      console.log('SESSION CALLBACK - Token error:', token.error);
 
-      if (token.error) {
-        console.error("Session error:", token.error);
-        return session;
+      if (token.error === 'RefreshAccessTokenError') {
+        console.log('🚫 SESSION ERROR - INVALIDATING SESSION');
+        // 세션을 무효화하여 로그아웃 유도
+        return {
+          ...session,
+          error: 'RefreshAccessTokenError',
+          user: session.user, // 기본 user 정보는 유지
+        };
       }
 
       if (token && session.user) {
@@ -119,14 +149,18 @@ const authOptions: NextAuthOptions = {
     },
 
     async redirect({ url, baseUrl }) {
-      const isLoggingOut = url.startsWith(baseUrl + "/api/auth/signout");
+      const isLoggingOut = url.startsWith(baseUrl + '/api/auth/signout');
       if (isLoggingOut) {
         return baseUrl;
       }
       return `${baseUrl}/chat`;
     },
   },
-  debug: process.env.NODE_ENV === "development",
+  pages: {
+    signIn: '/',
+    error: '/',
+  },
+  debug: process.env.NODE_ENV === 'development',
 };
 
 const handler = NextAuth(authOptions);

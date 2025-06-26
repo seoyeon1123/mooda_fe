@@ -1,6 +1,6 @@
 'use client';
 
-import { SessionProvider, useSession } from 'next-auth/react';
+import { SessionProvider, useSession, signOut } from 'next-auth/react';
 import { useEffect, type ReactNode } from 'react';
 import useUserStore from '@/store/userStore';
 
@@ -27,6 +27,22 @@ function StoreHydrator({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+function SessionErrorHandler({ children }: { children: React.ReactNode }) {
+  const { data: session, status } = useSession();
+
+  useEffect(() => {
+    if (
+      status === 'authenticated' &&
+      session?.error === 'RefreshAccessTokenError'
+    ) {
+      console.log('🚫 SESSION ERROR DETECTED - SIGNING OUT...');
+      signOut({ callbackUrl: '/' });
+    }
+  }, [session, status]);
+
+  return <>{children}</>;
+}
+
 export default function ClientSessionProvider({
   children,
 }: {
@@ -34,7 +50,9 @@ export default function ClientSessionProvider({
 }) {
   return (
     <SessionProvider>
-      <StoreHydrator>{children}</StoreHydrator>
+      <SessionErrorHandler>
+        <StoreHydrator>{children}</StoreHydrator>
+      </SessionErrorHandler>
     </SessionProvider>
   );
 }

@@ -52,11 +52,22 @@ export const loadEmotionData = async (
     if (response.ok) {
       const result = await response.json();
       if (result.success) {
+        // highlights가 배열인지 확인하고 안전하게 처리
+        let conversationSummary = '';
+        if (Array.isArray(result.highlights)) {
+          conversationSummary = result.highlights.join('\n');
+        } else if (typeof result.highlights === 'string') {
+          conversationSummary = result.highlights;
+        } else if (result.highlight) {
+          // highlight (단수형) 필드가 있는 경우
+          conversationSummary = result.highlight;
+        }
+
         return {
           date: result.date,
           emotion: mapEmotionToType(result.emotion),
           summary: result.summary,
-          conversationSummary: result.highlights.join('\n'),
+          conversationSummary,
         };
       }
     }

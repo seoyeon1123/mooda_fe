@@ -1,7 +1,6 @@
 import express, { Express, Request, Response } from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
-import cron from 'node-cron';
 import prisma from './lib/prisma';
 import jwt from 'jsonwebtoken';
 import { scheduleDailyEmotionSummary } from './lib/scheduler';
@@ -139,7 +138,7 @@ app.post(
 app.listen(port, () => {
   console.log(`[server]: Server is running at http://localhost:${port}`);
   console.log(
-    '📅 Daily emotion analysis scheduler is active (12:00 PM everyday)'
+    '📅 Daily emotion analysis scheduled via GitHub Actions (12:00 PM everyday)'
   );
   console.log(
     '🔧 Manual trigger available at POST /api/run-daily-emotion-analysis'
@@ -381,15 +380,4 @@ app.post(
   }
 );
 
-// 매일 12시에 감정 분석 스케줄러 실행
-cron.schedule('0 12 * * *', async () => {
-  console.log('🕐 Daily emotion analysis scheduler started at 12:00 PM');
-  try {
-    await scheduleDailyEmotionSummary();
-    console.log('✅ Daily emotion analysis completed successfully');
-  } catch (error) {
-    console.error('❌ Daily emotion analysis failed:', error);
-  }
-});
-
-console.log('📅 Daily emotion analysis scheduler set for 12:00 PM everyday');
+// 이제 GitHub Actions로 매일 12시에 자동 실행됩니다.

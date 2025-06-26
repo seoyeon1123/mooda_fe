@@ -1,5 +1,5 @@
 import {
-  getEmotionLogs,
+  getConversations,
   upsertEmotionLog,
   summarizeAndAnalyzeWithGemini,
 } from './emotion-service';
@@ -32,7 +32,7 @@ export async function scheduleDailyEmotionSummary() {
         console.log(`Processing user: ${user.userName || user.id}`);
 
         // 어제 대화 로그 조회
-        const conversations = await getEmotionLogs(user.id, yesterday);
+        const conversations = await getConversations(user.id, yesterday);
 
         if (conversations.length === 0) {
           console.log(`No conversations found for user ${user.id}`);

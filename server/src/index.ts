@@ -4,7 +4,11 @@ import cors from 'cors';
 import prisma from './lib/prisma';
 import jwt from 'jsonwebtoken';
 import { scheduleDailyEmotionSummary } from './lib/scheduler';
-import { simpleAnalyzeConversation } from './lib/emotion-service';
+import {
+  simpleAnalyzeConversation,
+  emotionToSvg,
+  emotionToPercentage,
+} from './lib/emotion-service';
 
 dotenv.config();
 
@@ -325,7 +329,7 @@ app.post(
           where: { id: existingLog.id },
           data: {
             emotion: analysisResult.emotion,
-            summary: analysisResult.summary,
+            summary: emotionToPercentage(analysisResult.emotion),
           },
         });
         console.log('Updated existing emotion log');
@@ -336,11 +340,9 @@ app.post(
             userId,
             date: startDate,
             emotion: analysisResult.emotion,
-            summary: analysisResult.summary,
-            shortSummary:
-              analysisResult.summary.substring(0, 50) +
-              (analysisResult.summary.length > 50 ? '...' : ''),
-            characterName: 'AI 분석',
+            summary: emotionToPercentage(analysisResult.emotion),
+            shortSummary: analysisResult.summary,
+            characterName: emotionToSvg(analysisResult.emotion),
           },
         });
         console.log('Created new emotion log');

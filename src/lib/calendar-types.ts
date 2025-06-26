@@ -3,6 +3,7 @@ export interface EmotionData {
   emotion: 'happy' | 'sad' | 'angry' | 'anxious' | 'calm' | 'excited';
   summary: string;
   conversationSummary: string;
+  characterName?: string;
 }
 
 export const emotionColors = {

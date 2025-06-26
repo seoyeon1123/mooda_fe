@@ -138,6 +138,12 @@ app.post(
 
 app.listen(port, () => {
   console.log(`[server]: Server is running at http://localhost:${port}`);
+  console.log(
+    '📅 Daily emotion analysis scheduler is active (12:00 PM everyday)'
+  );
+  console.log(
+    '🔧 Manual trigger available at POST /api/run-daily-emotion-analysis'
+  );
 });
 
 // EmotionLog 조회 API
@@ -332,6 +338,10 @@ app.post(
             date: startDate,
             emotion: analysisResult.emotion,
             summary: analysisResult.summary,
+            shortSummary:
+              analysisResult.summary.substring(0, 50) +
+              (analysisResult.summary.length > 50 ? '...' : ''),
+            characterName: 'AI 분석',
           },
         });
         console.log('Created new emotion log');
@@ -349,4 +359,37 @@ app.post(
   }
 );
 
-cron.schedule('0 0 * * *', scheduleDailyEmotionSummary);
+// 스케줄러 수동 실행 API (테스트용)
+app.post(
+  '/api/run-daily-emotion-analysis',
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      console.log('🔧 Manual daily emotion analysis triggered');
+      await scheduleDailyEmotionSummary();
+      res.status(200).json({
+        success: true,
+        message: 'Daily emotion analysis completed successfully',
+      });
+    } catch (error) {
+      console.error('Manual daily emotion analysis failed:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Daily emotion analysis failed',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+);
+
+// 매일 12시에 감정 분석 스케줄러 실행
+cron.schedule('0 12 * * *', async () => {
+  console.log('🕐 Daily emotion analysis scheduler started at 12:00 PM');
+  try {
+    await scheduleDailyEmotionSummary();
+    console.log('✅ Daily emotion analysis completed successfully');
+  } catch (error) {
+    console.error('❌ Daily emotion analysis failed:', error);
+  }
+});
+
+console.log('📅 Daily emotion analysis scheduler set for 12:00 PM everyday');

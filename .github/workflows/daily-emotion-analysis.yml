@@ -37,7 +37,7 @@ jobs:
       - name: Install dependencies
         run: |
           cd server
-          npm ci
+          npm install
 
       - name: Run Prisma migration
         env:
@@ -57,6 +57,8 @@ jobs:
         env:
           DATABASE_URL: postgresql://user:password@localhost:5432/mooda?schema=public
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          REFRESH_TOKEN_SECRET: ${{ secrets.REFRESH_TOKEN_SECRET }}
         run: |
           cd server
           npx tsx src/lib/scheduler.ts

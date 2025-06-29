@@ -11,9 +11,13 @@ import { loadMonthlyEmotionData } from '@/lib/emotion-service';
 
 interface EmotionCalendarProps {
   userId: string;
+  onDateSelect?: (date: Date | null) => void;
 }
 
-export default function EmotionCalendar({ userId }: EmotionCalendarProps) {
+export default function EmotionCalendar({
+  userId,
+  onDateSelect,
+}: EmotionCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [emotionData, setEmotionData] = useState<EmotionData[]>([]);
@@ -58,6 +62,7 @@ export default function EmotionCalendar({ userId }: EmotionCalendarProps) {
 
   const handleDateClick = (date: Date) => {
     setSelectedDate(date);
+    onDateSelect?.(date); // 부모 컴포넌트에 날짜 선택 알림
   };
 
   const renderCalendar = () => {

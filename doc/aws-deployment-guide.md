@@ -26,6 +26,7 @@
    - 인스턴스 유형: `t2.micro`
 
 4. **백엔드 서버 배포**
+
    - Node.js 18 설치
    - Git 클론: `https://github.com/seoyeon1123/mooda_fe.git`
    - Prisma 데이터베이스 연결 성공
@@ -99,6 +100,7 @@ kill [프로세스ID]
    - `GET /api/emotion-logs/:date` - 특정 날짜 감정 로그
 
 4. **대화 분석 API**
+
    - `POST /api/test-emotion-analysis` - 감정 분석 테스트
    - `POST /api/run-daily-emotion-analysis` - 일일 감정 분석 실행
 
@@ -107,24 +109,28 @@ kill [프로세스ID]
 ### 서버 환경 변수 (.env)
 
 ```env
+
+JWT_SECRET="dfsfhsdgusdgdjskfsldgus30428dsgsl!dsfs0gusold"
+REFRESH_TOKEN_SECRET="sdfsdgsgsdugosidgjodsighosdighsgihosdigusdoilgudsoigho1233r2s"
+
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=abc123def456ghi789jkl012mno345pqr678stu901vwx234yz
+
+KAKAO_CLIENT_ID=e6210555262d6a2cf68f87fa8bb93309
+KAKAO_CLIENT_SECRET=2POtzHVxffUir2u1pd4ZNPlBAnoFSj2P
+
+
+
 # Database
 DATABASE_URL="postgresql://lsy0909096:Lee355400!@mooda-db.ctuasauea1z7.ap-northeast-2.rds.amazonaws.com:5432/postgres"
 
-# JWT
-JWT_SECRET="mooda-jwt-secret-key-2024-super-secure"
-REFRESH_TOKEN_SECRET="mooda-refresh-token-secret-2024"
 
 # Server
 PORT=3000
 NODE_ENV=production
 
-# NextAuth (프론트엔드용)
-NEXTAUTH_URL="http://15.165.246.12:3000"
-NEXTAUTH_SECRET="mooda-nextauth-secret-2024"
 
-# Kakao OAuth
-KAKAO_CLIENT_ID="e6210555262d6a2cf68f87fa8bb93309"
-KAKAO_CLIENT_SECRET="qYAYTM3x9qTL4Bs2wcWyMVH4omUddhAH"
+
 ```
 
 ## 🚀 다음 단계
@@ -286,6 +292,6 @@ grep "ERROR" server.log
 
 ---
 
-**배포 완료일**: 2025년 6월 27일  
-**서버 URL**: http://15.165.246.12:3000  
+**배포 완료일**: 2025년 6월 27일
+**서버 URL**: http://15.165.246.12:3000
 **관리자**: lsy_0

@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 서버로 프록시
-    const serverUrl = `http://localhost:8080/api/emotion-logs?userId=${userId}&year=${year}&month=${month}`;
+    const serverUrl = `http://13.124.154.89:3000/api/emotion-logs?userId=${userId}&year=${year}&month=${month}`;
     console.log('🔄 Proxying to server:', serverUrl);
 
     const response = await fetch(serverUrl);

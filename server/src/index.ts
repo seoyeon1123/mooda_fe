@@ -46,9 +46,17 @@ function getDefaultPersonality() {
 }
 
 // CORS 설정
+const allowedOrigins =
+  process.env.NODE_ENV === 'production'
+    ? [
+        process.env.FRONTEND_URL || 'https://your-vercel-domain.vercel.app',
+        'http://localhost:3000', // 로컬 개발용
+      ]
+    : true; // 개발 환경에서 모든 origin 허용
+
 app.use(
   cors({
-    origin: true, // 개발 환경에서 모든 origin 허용
+    origin: allowedOrigins,
     credentials: true,
   })
 );

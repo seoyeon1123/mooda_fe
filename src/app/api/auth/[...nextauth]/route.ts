@@ -6,13 +6,16 @@ import { JWT } from 'next-auth/jwt';
 async function refreshAccessToken(token: JWT): Promise<JWT> {
   try {
     console.log('🔄 REFRESHING ACCESS TOKEN...');
-    const response = await fetch('http://13.124.154.89:3000/api/auth/refresh', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ refreshToken: token.refreshToken }),
-    });
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/auth/refresh`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refreshToken: token.refreshToken }),
+      }
+    );
 
     const refreshedTokens = await response.json();
 
@@ -51,7 +54,7 @@ const authOptions: NextAuthOptions = {
       if (user && account) {
         try {
           const response = await fetch(
-            'http://13.124.154.89:3000/api/auth/login',
+            `${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`,
             {
               method: 'POST',
               headers: {

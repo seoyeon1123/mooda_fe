@@ -94,7 +94,7 @@ export default function EmotionCalendar({
           key={day}
           onClick={() => handleDateClick(date)}
           className={`p-2 cursor-pointer hover:bg-gray-100 rounded-lg transition-colors
-            ${selectedDate?.getDate() === day ? 'ring-2 ring-blue-500' : ''}`}
+            ${selectedDate?.getDate() === day ? 'ring-2 ring-green-500' : ''}`}
         >
           <div className="text-center">
             <span className="text-sm">{day}</span>
@@ -190,6 +190,8 @@ export default function EmotionCalendar({
                   />
                 </div>
                 <div>
+                  <div className="text-sm text-gray-500">오늘의 감정</div>
+
                   <div className="text-lg font-medium text-gray-800">
                     {(() => {
                       const year = selectedDate.getFullYear();
@@ -206,7 +208,6 @@ export default function EmotionCalendar({
                       )?.summary;
                     })()}
                   </div>
-                  <div className="text-sm text-gray-500">오늘의 감정</div>
                 </div>
               </div>
 

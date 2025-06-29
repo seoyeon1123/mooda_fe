@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     // 백엔드 서버로 프록시
-    const serverUrl = 'http://13.124.154.89:3000/api/socket';
+    const serverUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/socket`;
     console.log('🔄 Proxying chat request to server:', serverUrl);
 
     const response = await fetch(serverUrl, {

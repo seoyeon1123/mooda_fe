@@ -9,11 +9,41 @@ import {
   emotionToSvg,
   emotionToPercentage,
 } from './lib/emotion-service';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { Conversation } from '@prisma/client';
+import { AI_PERSONALITIES, AIPersonality } from './lib/ai-personalities';
 
 dotenv.config();
 
 const app: Express = express();
 const port = process.env.PORT || 8080;
+
+// Gemini AI 초기화
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+
+// 타입 정의
+interface SendMessageData {
+  message: string;
+  userId: string;
+  personalityId?: string;
+}
+
+interface AnalyzeEmotionData {
+  userId: string;
+}
+
+interface GetHistoryData {
+  userId: string;
+}
+
+// AI 성격 관련 함수들
+function getPersonalityById(id: string) {
+  return AI_PERSONALITIES.find((p: AIPersonality) => p.id === id);
+}
+
+function getDefaultPersonality() {
+  return AI_PERSONALITIES[0];
+}
 
 // CORS 설정
 app.use(
@@ -138,6 +168,226 @@ app.post(
     }
   }
 );
+
+// 채팅 API
+app.post('/api/socket', async (req: Request, res: Response): Promise<void> => {
+  const { action, data } = req.body;
+
+  try {
+    switch (action) {
+      case 'send-message':
+        await handleSendMessage(data as SendMessageData, res);
+        break;
+      case 'analyze-emotion':
+        await handleAnalyzeEmotion(data as AnalyzeEmotionData, res);
+        break;
+      case 'get-conversation-history':
+        await getConversationHistory(data as GetHistoryData, res);
+        break;
+      default:
+        res.status(400).json({ error: 'Unknown action' });
+    }
+  } catch (error) {
+    console.error('API Error:', error);
+    res.status(500).json({ error: 'An internal server error occurred' });
+  }
+});
+
+// AI 메시지 처리 함수
+async function handleSendMessage(data: SendMessageData, res: Response) {
+  const { message, userId, personalityId } = data;
+
+  if (!message || !userId) {
+    res.status(400).json({ error: 'Message and userId are required' });
+    return;
+  }
+
+  try {
+    // 1. 사용자 메시지를 DB에 저장
+    const userMessage = await prisma.conversation.create({
+      data: {
+        userId,
+        role: 'user',
+        content: message,
+        personalityId,
+      },
+    });
+
+    // 2. AI 성격 설정 가져오기
+    const personality = personalityId
+      ? getPersonalityById(personalityId)
+      : getDefaultPersonality();
+    if (!personality) {
+      res.status(400).json({ error: 'Invalid personality ID' });
+      return;
+    }
+
+    // 3. DB에서 최근 대화 기록 조회
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const conversationHistory = await prisma.conversation.findMany({
+      where: { userId, personalityId },
+      orderBy: { createdAt: 'asc' },
+      take: 20,
+    });
+
+    // 대화 기록을 Gemini 형식으로 변환
+    const chatHistory = conversationHistory.map((msg: Conversation) => ({
+      role: msg.role === 'user' ? 'user' : 'model',
+      parts: [{ text: msg.content }],
+    }));
+
+    // 시스템 프롬프트를 첫 번째 메시지로 추가 (대화 기록이 없을 때만)
+    if (chatHistory.length === 0) {
+      chatHistory.unshift({
+        role: 'model',
+        parts: [{ text: personality.systemPrompt }],
+      });
+    }
+
+    const chat = model.startChat({
+      history: chatHistory,
+      generationConfig: {
+        maxOutputTokens: 150,
+        temperature: 0.8,
+        topP: 0.9,
+        topK: 40,
+      },
+    });
+
+    const result = await chat.sendMessage(message);
+    const response = result.response;
+    const aiContent = response.text();
+
+    // 5. AI 응답 길이 제한
+    let finalContent = aiContent;
+    if (finalContent.length > 150) {
+      const slice = finalContent.slice(0, 150);
+      const lastPunct = Math.max(
+        slice.lastIndexOf('.'),
+        slice.lastIndexOf('!'),
+        slice.lastIndexOf('?'),
+        slice.lastIndexOf('…'),
+        slice.lastIndexOf('\n')
+      );
+      finalContent = lastPunct > 50 ? slice.slice(0, lastPunct + 1) : slice;
+    }
+
+    // 6. AI 응답을 DB에 저장
+    const aiResponse = await prisma.conversation.create({
+      data: {
+        userId,
+        role: 'ai',
+        content: finalContent,
+        personalityId,
+      },
+    });
+
+    // 7. 클라이언트에 결과 반환
+    res.json({
+      userMessage,
+      aiResponse,
+      success: true,
+      personality: {
+        id: personality.id,
+        name: personality.name,
+        icon: personality.iconType,
+      },
+    });
+  } catch (error) {
+    console.error('Send message error:', error);
+    res.status(500).json({ error: 'Failed to generate AI response' });
+  }
+}
+
+// 대화 기록 조회 함수
+async function getConversationHistory(data: GetHistoryData, res: Response) {
+  const { userId } = data;
+
+  if (!userId) {
+    res.status(400).json({ error: 'userId is required' });
+    return;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  try {
+    const conversations = await prisma.conversation.findMany({
+      where: {
+        userId,
+        createdAt: { gte: today },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+    res.json({ conversations, success: true });
+  } catch (error) {
+    console.error('Get conversation history error:', error);
+    res.status(500).json({ error: 'Failed to retrieve conversation history' });
+  }
+}
+
+// 감정 분석 함수
+async function handleAnalyzeEmotion(data: AnalyzeEmotionData, res: Response) {
+  const { userId } = data;
+
+  if (!userId) {
+    res.status(400).json({ error: 'userId is required' });
+    return;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  try {
+    const conversations = await prisma.conversation.findMany({
+      where: {
+        userId,
+        createdAt: { gte: today },
+      },
+    });
+
+    if (conversations.length === 0) {
+      res.status(400).json({ error: 'No conversations to analyze' });
+      return;
+    }
+
+    const conversationText = conversations
+      .map((msg) => `${msg.role}: ${msg.content}`)
+      .join('\n');
+
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const prompt = `Analyze the user's emotional state from the following conversation and classify it into one of these 6 categories: VeryHappy, Happy, Neutral, Sad, VerySad, Angry.
+    
+    Respond in the following JSON format:
+    {
+      "emotion": "Classified emotion (e.g., Happy)",
+      "summary": "A short 1-2 sentence summary of today's conversation.",
+      "highlight": "One or two memorable lines from the conversation that best represent the emotion."
+    }
+    
+    --- Conversation ---
+    ${conversationText}
+    --- End ---
+    `;
+
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    const jsonString = response
+      .text()
+      .replace(/```json|```/g, '')
+      .trim();
+    const analysisResult = JSON.parse(jsonString);
+
+    res.json({ ...analysisResult, success: true });
+  } catch (error) {
+    console.error('Analyze emotion error:', error);
+    if (error instanceof SyntaxError) {
+      res.status(500).json({ error: 'Failed to parse AI analysis response' });
+    } else {
+      res.status(500).json({ error: 'Failed to analyze emotion' });
+    }
+  }
+}
 
 app.listen(port, () => {
   console.log(`[server]: Server is running at http://localhost:${port}`);

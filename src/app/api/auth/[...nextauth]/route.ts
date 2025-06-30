@@ -6,7 +6,7 @@ import { JWT } from 'next-auth/jwt';
 async function refreshAccessToken(token: JWT): Promise<JWT> {
   try {
     console.log('🔄 REFRESHING ACCESS TOKEN...');
-    const response = await fetch('http://localhost:8080/api/auth/refresh', {
+    const response = await fetch('http://13.124.154.89:3000/api/auth/refresh', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -50,17 +50,20 @@ const authOptions: NextAuthOptions = {
       // 초기 로그인 시
       if (user && account) {
         try {
-          const response = await fetch('http://localhost:8080/api/auth/login', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              kakaoId: user.id,
-              email: user.email,
-              userName: user.name,
-            }),
-          });
+          const response = await fetch(
+            'http://13.124.154.89:3000/api/auth/login',
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                kakaoId: user.id,
+                email: user.email,
+                userName: user.name,
+              }),
+            }
+          );
 
           if (response.ok) {
             const data = await response.json();

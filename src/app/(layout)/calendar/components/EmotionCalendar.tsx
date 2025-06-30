@@ -7,26 +7,42 @@ import {
   emotionLabels,
   monthNames,
 } from '@/lib/calendar-types';
-import { loadEmotionData } from '@/lib/emotion-service';
+import { loadMonthlyEmotionData } from '@/lib/emotion-service';
 
 interface EmotionCalendarProps {
   userId: string;
+  onDateSelect?: (date: Date | null) => void;
 }
 
-export default function EmotionCalendar({ userId }: EmotionCalendarProps) {
+export default function EmotionCalendar({
+  userId,
+  onDateSelect,
+}: EmotionCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [emotionData, setEmotionData] = useState<EmotionData[]>([]);
 
   useEffect(() => {
     const fetchEmotionData = async () => {
-      const data = await loadEmotionData(userId);
-      if (data) {
-        setEmotionData((prev) => [...prev, data]);
-      }
+      console.log('🔍 Fetching emotion data for userId:', userId);
+      console.log(
+        '🔍 Year:',
+        currentDate.getFullYear(),
+        'Month:',
+        currentDate.getMonth() + 1
+      );
+
+      const data = await loadMonthlyEmotionData(
+        userId,
+        currentDate.getFullYear(),
+        currentDate.getMonth() + 1 // JavaScript의 월은 0부터 시작하므로 +1
+      );
+
+      console.log('📅 Received emotion data:', data);
+      setEmotionData(data);
     };
     fetchEmotionData();
-  }, [userId]);
+  }, [userId, currentDate]); // currentDate도 의존성에 추가
 
   const getDaysInMonth = (date: Date) => {
     return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
@@ -46,6 +62,7 @@ export default function EmotionCalendar({ userId }: EmotionCalendarProps) {
 
   const handleDateClick = (date: Date) => {
     setSelectedDate(date);
+    onDateSelect?.(date); // 부모 컴포넌트에 날짜 선택 알림
   };
 
   const renderCalendar = () => {
@@ -65,7 +82,11 @@ export default function EmotionCalendar({ userId }: EmotionCalendarProps) {
         currentDate.getMonth(),
         day
       );
-      const dateString = date.toISOString().split('T')[0];
+      // 타임존 이슈 해결: UTC 변환 없이 직접 문자열 생성
+      const year = currentDate.getFullYear();
+      const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+      const dayStr = String(day).padStart(2, '0');
+      const dateString = `${year}-${month}-${dayStr}`;
       const emotion = emotionData.find((d) => d.date === dateString);
 
       days.push(
@@ -73,7 +94,7 @@ export default function EmotionCalendar({ userId }: EmotionCalendarProps) {
           key={day}
           onClick={() => handleDateClick(date)}
           className={`p-2 cursor-pointer hover:bg-gray-100 rounded-lg transition-colors
-            ${selectedDate?.getDate() === day ? 'ring-2 ring-blue-500' : ''}`}
+            ${selectedDate?.getDate() === day ? 'ring-2 ring-green-500' : ''}`}
         >
           <div className="text-center">
             <span className="text-sm">{day}</span>
@@ -84,7 +105,7 @@ export default function EmotionCalendar({ userId }: EmotionCalendarProps) {
                 }`}
               >
                 <Image
-                  src={emotionIcons[emotion.emotion]}
+                  src={emotion.characterName || emotionIcons[emotion.emotion]}
                   alt={emotionLabels[emotion.emotion]}
                   width={20}
                   height={20}
@@ -132,30 +153,92 @@ export default function EmotionCalendar({ userId }: EmotionCalendarProps) {
 
       {selectedDate && (
         <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-          <h3 className="text-lg font-semibold mb-2">
+          <h3 className="text-lg font-semibold mb-3">
             {selectedDate.getMonth() + 1}월 {selectedDate.getDate()}일의 감정
           </h3>
-          {emotionData.find(
-            (d) => d.date === selectedDate.toISOString().split('T')[0]
-          ) ? (
-            <div>
-              <p className="text-gray-600">
-                {
-                  emotionData.find(
-                    (d) => d.date === selectedDate.toISOString().split('T')[0]
-                  )?.summary
-                }
-              </p>
-              <p className="mt-2 text-sm text-gray-500">
-                {
-                  emotionData.find(
-                    (d) => d.date === selectedDate.toISOString().split('T')[0]
-                  )?.conversationSummary
-                }
-              </p>
+          {(() => {
+            // 타임존 이슈 해결: 선택된 날짜를 로컬 기준으로 문자열 생성
+            const year = selectedDate.getFullYear();
+            const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+            const day = String(selectedDate.getDate()).padStart(2, '0');
+            const selectedDateString = `${year}-${month}-${day}`;
+            return emotionData.find((d) => d.date === selectedDateString);
+          })() ? (
+            <div className="space-y-3">
+              {/* 감정 아이콘과 퍼센트 */}
+              <div className="flex items-center space-x-3">
+                <div className="">
+                  <Image
+                    src={(() => {
+                      const year = selectedDate.getFullYear();
+                      const month = String(
+                        selectedDate.getMonth() + 1
+                      ).padStart(2, '0');
+                      const day = String(selectedDate.getDate()).padStart(
+                        2,
+                        '0'
+                      );
+                      const selectedDateString = `${year}-${month}-${day}`;
+                      return (
+                        emotionData.find((d) => d.date === selectedDateString)
+                          ?.characterName || '/images/emotion/soso.svg'
+                      );
+                    })()}
+                    alt="감정"
+                    width={48}
+                    height={48}
+                  />
+                </div>
+                <div>
+                  <div className="text-sm text-gray-500">오늘의 감정</div>
+
+                  <div className="text-lg font-medium text-gray-800">
+                    {(() => {
+                      const year = selectedDate.getFullYear();
+                      const month = String(
+                        selectedDate.getMonth() + 1
+                      ).padStart(2, '0');
+                      const day = String(selectedDate.getDate()).padStart(
+                        2,
+                        '0'
+                      );
+                      const selectedDateString = `${year}-${month}-${day}`;
+                      return emotionData.find(
+                        (d) => d.date === selectedDateString
+                      )?.summary;
+                    })()}
+                  </div>
+                </div>
+              </div>
+
+              {/* 대화 요약 */}
+              <div className="border-t pt-3">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">
+                  오늘의 대화
+                </h4>
+                <p className="text-gray-600 leading-relaxed">
+                  {(() => {
+                    const year = selectedDate.getFullYear();
+                    const month = String(selectedDate.getMonth() + 1).padStart(
+                      2,
+                      '0'
+                    );
+                    const day = String(selectedDate.getDate()).padStart(2, '0');
+                    const selectedDateString = `${year}-${month}-${day}`;
+                    return emotionData.find(
+                      (d) => d.date === selectedDateString
+                    )?.conversationSummary;
+                  })()}
+                </p>
+              </div>
             </div>
           ) : (
-            <p className="text-gray-500">이 날의 대화 기록이 없습니다.</p>
+            <div className="text-center py-8">
+              <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-gray-100 flex items-center justify-center">
+                <span className="text-2xl text-gray-400">💭</span>
+              </div>
+              <p className="text-gray-500">이 날의 대화 기록이 없습니다.</p>
+            </div>
           )}
         </div>
       )}

@@ -52,11 +52,22 @@ export const loadEmotionData = async (
     if (response.ok) {
       const result = await response.json();
       if (result.success) {
+        // highlights가 배열인지 확인하고 안전하게 처리
+        let conversationSummary = '';
+        if (Array.isArray(result.highlights)) {
+          conversationSummary = result.highlights.join('\n');
+        } else if (typeof result.highlights === 'string') {
+          conversationSummary = result.highlights;
+        } else if (result.highlight) {
+          // highlight (단수형) 필드가 있는 경우
+          conversationSummary = result.highlight;
+        }
+
         return {
           date: result.date,
           emotion: mapEmotionToType(result.emotion),
           summary: result.summary,
-          conversationSummary: result.highlights.join('\n'),
+          conversationSummary,
         };
       }
     }
@@ -103,3 +114,51 @@ ${messages.join('\n')}
     emotion: emotionMatch ? emotionMatch[1] : 'Neutral',
   };
 }
+
+// 월별 감정 데이터 불러오기 (캘린더용)
+export const loadMonthlyEmotionData = async (
+  userId: string,
+  year: number,
+  month: number
+): Promise<EmotionData[]> => {
+  try {
+    const url = `/api/emotion-logs?userId=${userId}&year=${year}&month=${month}`;
+    console.log('🌐 API 호출:', url);
+
+    const response = await fetch(url);
+
+    console.log('📡 API 응답 상태:', response.status);
+
+    if (response.ok) {
+      const result = await response.json();
+      console.log('📋 API 응답 데이터:', result);
+
+      if (result.emotionLogs) {
+        const mappedData = result.emotionLogs.map(
+          (log: {
+            date: string;
+            emotion: string;
+            summary: string;
+            shortSummary: string;
+            characterName: string;
+          }) => ({
+            date: new Date(log.date).toISOString().split('T')[0], // YYYY-MM-DD 형식
+            emotion: mapEmotionToType(log.emotion),
+            summary: log.summary, // 감정 퍼센트
+            conversationSummary: log.shortSummary || log.summary, // 대화 요약
+            characterName: log.characterName, // 이미지 경로
+          })
+        );
+
+        console.log('🎯 매핑된 데이터:', mappedData);
+        return mappedData;
+      }
+    } else {
+      console.error('❌ API 오류:', response.status, await response.text());
+    }
+    return [];
+  } catch (error) {
+    console.error('월별 감정 데이터 로드 오류:', error);
+    return [];
+  }
+};

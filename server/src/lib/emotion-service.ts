@@ -1,6 +1,6 @@
 import prisma from './prisma';
 
-export async function getEmotionLogs(userId: string, date: Date) {
+export async function getConversations(userId: string, date: Date) {
   const start = new Date(date);
   start.setHours(0, 0, 0, 0);
   const end = new Date(date);
@@ -20,6 +20,50 @@ export async function getEmotionLogs(userId: string, date: Date) {
   });
 }
 
+// Gemini 감정 결과를 svg 파일명으로 매핑
+export const emotionToSvg = (emotion: string): string => {
+  const map: Record<string, string> = {
+    VeryHappy: '/images/emotion/veryHappy.svg',
+    Happy: '/images/emotion/happy.svg',
+    Neutral: '/images/emotion/soso.svg',
+    SlightlySad: '/images/emotion/sad.svg',
+    Sad: '/images/emotion/sad.svg',
+    VerySad: '/images/emotion/verySad.svg',
+    Angry: '/images/emotion/angry.svg',
+    excited: '/images/emotion/veryHappy.svg',
+    happy: '/images/emotion/happy.svg',
+    calm: '/images/emotion/soso.svg',
+    anxious: '/images/emotion/sad.svg',
+    sad: '/images/emotion/sad.svg',
+    angry: '/images/emotion/verySad.svg',
+  };
+  return map[emotion] || '/images/emotion/soso.svg';
+};
+
+// 감정을 퍼센트로 변환
+export const emotionToPercentage = (emotion: string): string => {
+  const emotionNames: Record<string, string> = {
+    VeryHappy: '매우 행복',
+    Happy: '행복',
+    Neutral: '평온',
+    Sad: '슬픔',
+    VerySad: '매우 슬픔',
+    Angry: '화남',
+    excited: '흥분',
+    happy: '행복',
+    calm: '평온',
+    anxious: '불안',
+    sad: '슬픔',
+    angry: '화남',
+  };
+
+  // 80-95% 사이의 랜덤 퍼센트 생성
+  const percentage = Math.floor(Math.random() * 16) + 80; // 80-95
+  const emotionName = emotionNames[emotion] || '평온';
+
+  return `${emotionName} ${percentage}%`;
+};
+
 export async function saveEmotionLog(
   userId: string,
   date: Date,
@@ -30,8 +74,10 @@ export async function saveEmotionLog(
     data: {
       userId,
       date,
-      summary,
+      summary: emotionToPercentage(emotion), // 감정 퍼센트
       emotion,
+      shortSummary: summary, // 실제 요약 내용
+      characterName: emotionToSvg(emotion), // 이미지 경로
     },
   });
 }
@@ -55,8 +101,10 @@ export async function upsertEmotionLog(
     return prisma.emotionLog.update({
       where: { id: existing.id },
       data: {
-        summary,
+        summary: emotionToPercentage(emotion), // 감정 퍼센트
         emotion,
+        shortSummary: summary, // 실제 요약 내용
+        characterName: emotionToSvg(emotion), // 이미지 경로
       },
     });
   } else {
@@ -65,8 +113,10 @@ export async function upsertEmotionLog(
       data: {
         userId,
         date,
-        summary,
+        summary: emotionToPercentage(emotion), // 감정 퍼센트
         emotion,
+        shortSummary: summary, // 실제 요약 내용
+        characterName: emotionToSvg(emotion), // 이미지 경로
       },
     });
   }
@@ -74,98 +124,205 @@ export async function upsertEmotionLog(
 
 export async function summarizeAndAnalyzeWithGemini(
   messages: string[]
-): Promise<{ summary: string; emotion: string }> {
+): Promise<{ summary: string; emotion: string; highlight: string }> {
   const prompt = `
-아래는 사용자의 하루 대화 내용입니다.
-이 대화를 요약하고, 오늘의 기분을 한 단어(예: excited, happy, calm, anxious, sad, angry)로 평가해줘.
+당신은 친근한 일기 작성 도우미입니다. 사용자의 하루를 자연스럽고 따뜻하게 요약해주세요.
 
-대화:
+사용자의 하루 이야기:
 ${messages.join('\n')}
 
-[출력 예시]
-요약: ...
-감정: ...
-`;
+요약 가이드라인:
+1. 마치 친구가 일기를 써주는 것처럼 친근하고 자연스럽게 작성
+2. 사용자의 실제 활동과 감정에 집중 (AI, 대화, 추천 등 언급 금지)
+3. 일상적인 말투로 편안하게 표현
+4. 사용자 입장에서 "나는 오늘..." 식으로 생각하며 작성
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${process.env.GEMINI_API_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-      }),
-    }
-  );
+좋은 요약 예시:
+- "오늘은 저녁 메뉴를 고민하다가 결국 고등어회가 땡겨서 먹고 싶어했어요 😊"
+- "회사 일로 좀 피곤했지만 그래도 하루를 무사히 보냈네요"
+- "친구들과 만나서 수다 떨며 즐거운 시간 보낸 기분 좋은 하루였어요"
+- "비 오는 날씨 때문에 기분이 조금 우울했지만 집에서 편안히 쉬었어요"
 
-  const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-  const summaryMatch = text.match(/요약:\s*(.+)/);
-  const emotionMatch = text.match(/감정:\s*(\w+)/);
-
-  return {
-    summary: summaryMatch ? summaryMatch[1] : '',
-    emotion: emotionMatch ? emotionMatch[1] : 'calm',
-  };
+다음 JSON 형식으로 응답해주세요:
+{
+  "summary": "친근하고 자연스러운 하루 요약 (이모지 포함 가능, 1-2문장)",
+  "emotion": "VeryHappy, Happy, Neutral, Sad, VerySad, Angry 중 하나",
+  "highlight": "오늘 가장 기억에 남는 감정이나 일"
 }
 
-// 테스트용 간단한 감정 분석 함수
+감정 분류:
+- VeryHappy: 정말 기쁘고 신나는 날 🎉
+- Happy: 기분 좋고 만족스러운 날 😊  
+- Neutral: 평범하고 무난한 일상 😐
+- Sad: 조금 슬프거나 아쉬운 날 😢
+- VerySad: 많이 힘들거나 우울한 날 😭
+- Angry: 짜증나거나 화가 난 날 😠
+`;
+
+  try {
+    console.log('🔍 Gemini API 호출 시작...');
+    console.log('📝 대화 메시지 수:', messages.length);
+    console.log(
+      '🔑 API Key 앞 10자:',
+      process.env.GEMINI_API_KEY?.substring(0, 10) + '...'
+    );
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+        }),
+      }
+    );
+
+    console.log('📡 API 응답 상태:', response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ API 오류 응답:', errorText);
+      throw new Error(`API 호출 실패: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log('📋 API 응답 데이터:', JSON.stringify(data, null, 2));
+
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+    console.log('🔤 추출된 텍스트:', text);
+
+    // JSON 파싱
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const result = JSON.parse(jsonMatch[0]);
+      console.log('✅ 파싱된 결과:', result);
+      return {
+        summary: result.summary || '하루 일상을 보낸 평범한 날',
+        emotion: result.emotion || 'Neutral',
+        highlight: result.highlight || '',
+      };
+    }
+
+    // JSON 파싱 실패 시 fallback
+    console.log('⚠️ JSON 파싱 실패, fallback 시도...');
+    const summaryMatch = text.match(/요약[:\s]*(.+)/);
+    const emotionMatch = text.match(/감정[:\s]*(\w+)/);
+
+    return {
+      summary: summaryMatch ? summaryMatch[1] : '하루 일상을 보낸 평범한 날',
+      emotion: emotionMatch ? emotionMatch[1] : 'Neutral',
+      highlight: '',
+    };
+  } catch (error) {
+    console.error('❌ Gemini API 호출 실패:', error);
+    console.log('🔄 간단한 분석으로 fallback...');
+    // API 호출 실패 시 간단한 분석으로 fallback
+    return simpleAnalyzeConversation(messages.join('\n'));
+  }
+}
+
+// 개선된 간단한 감정 분석 함수
 export function simpleAnalyzeConversation(conversationText: string): {
   summary: string;
   emotion: string;
+  highlight: string;
 } {
-  console.log('Analyzing conversation:', conversationText);
+  console.log('🔍 Fallback 분석 시작...');
 
-  // 키워드 기반 감정 분석
   const lowerText = conversationText.toLowerCase();
-  let emotion = 'calm';
+  let emotion = 'Neutral';
+  let emotionScore = 0;
+
+  // 감정 키워드 점수 계산
+  const emotionKeywords = {
+    VeryHappy: ['완전', '너무좋', '최고', '대박', '신나', '환상적', '완벽'],
+    Happy: ['좋', '기쁘', '행복', '즐거', '만족', '웃', '기분좋', '다행'],
+    Neutral: ['그냥', '보통', '평범', '괜찮', '무난'],
+    Sad: ['슬프', '우울', '힘들', '아프', '속상', '실망', '걱정'],
+    VerySad: ['너무슬', '절망', '포기', '죽고싶', '최악'],
+    Angry: ['짜증', '화', '빡', '싫', '답답', '스트레스', '열받', '미치'],
+  };
+
+  // 각 감정별 점수 계산
+  const scores: Record<string, number> = {};
+  for (const [emotionType, keywords] of Object.entries(emotionKeywords)) {
+    scores[emotionType] = 0;
+    keywords.forEach((keyword) => {
+      const matches = (lowerText.match(new RegExp(keyword, 'g')) || []).length;
+      scores[emotionType] += matches;
+    });
+  }
+
+  // 가장 높은 점수의 감정 선택
+  const maxEmotion = Object.keys(scores).reduce((a, b) =>
+    scores[a] > scores[b] ? a : b
+  );
+
+  if (scores[maxEmotion] > 0) {
+    emotion = maxEmotion;
+    emotionScore = scores[maxEmotion];
+  }
+
+  // 대화 내용 정리
+  const messages = conversationText
+    .split('\n')
+    .filter((line) => line.trim().length > 0);
+  const userMessages = messages.filter(
+    (line) =>
+      !line.toLowerCase().includes('ai') &&
+      !line.toLowerCase().includes('assistant')
+  );
+
+  // 스마트 요약 생성
+  let summary = '';
+  let highlight = '';
 
   if (
-    lowerText.includes('짜증') ||
-    lowerText.includes('화') ||
-    lowerText.includes('싫') ||
-    lowerText.includes('답답')
+    lowerText.includes('비') &&
+    (lowerText.includes('기분') || lowerText.includes('우울'))
   ) {
-    emotion = 'angry';
+    summary = '비 오는 날씨로 인해 우울한 기분을 느낀 하루';
+    highlight = '비 때문에 기분이 안 좋음';
   } else if (
-    lowerText.includes('슬프') ||
-    lowerText.includes('우울') ||
-    lowerText.includes('힘들')
+    lowerText.includes('회사') ||
+    lowerText.includes('업무') ||
+    lowerText.includes('일')
   ) {
-    emotion = 'sad';
-  } else if (
-    lowerText.includes('기쁘') ||
-    lowerText.includes('좋') ||
-    lowerText.includes('행복') ||
-    lowerText.includes('즐거')
-  ) {
-    emotion = 'happy';
-  } else if (
-    lowerText.includes('무료') ||
-    lowerText.includes('지루') ||
-    lowerText.includes('그냥')
-  ) {
-    emotion = 'soso';
-  }
-
-  // 대화 요약 생성
-  const userMessages = conversationText
-    .split('\n')
-    .filter((line) => line.startsWith('user:'))
-    .map((line) => line.replace('user:', '').trim())
-    .join(' ');
-
-  let summary = '';
-  if (lowerText.includes('비') && lowerText.includes('짜증')) {
-    summary = '비 오는 날씨 때문에 기분이 안 좋았고, 회사 일로 피곤했던 하루';
-  } else if (lowerText.includes('회사') || lowerText.includes('일')) {
-    summary = '회사 업무로 바쁘고 피곤한 하루를 보냄';
+    if (emotion === 'Angry' || emotion === 'Sad') {
+      summary = '회사 업무로 인한 스트레스와 피로감을 느낀 하루';
+      highlight = '업무 스트레스';
+    } else {
+      summary = '회사 일상과 업무에 대한 대화를 나눈 하루';
+      highlight = '일상적인 업무 대화';
+    }
+  } else if (lowerText.includes('친구') || lowerText.includes('가족')) {
+    summary = '주변 사람들과의 관계에 대해 이야기한 하루';
+    highlight = '인간관계 대화';
+  } else if (lowerText.includes('음식') || lowerText.includes('먹')) {
+    summary = '음식과 식사에 관한 대화를 나눈 하루';
+    highlight = '음식 관련 대화';
   } else {
+    // 일반적인 요약
+    const meaningfulMessages = userMessages
+      .slice(0, 3)
+      .join(' ')
+      .substring(0, 80);
     summary =
-      userMessages.substring(0, 50) + (userMessages.length > 50 ? '...' : '');
+      meaningfulMessages + (meaningfulMessages.length >= 80 ? '...' : '');
+    highlight = userMessages[0]?.substring(0, 30) || '일상 대화';
   }
 
-  console.log('Analysis result:', { summary, emotion });
+  console.log(
+    `✅ 분석 완료 - 감정: ${emotion} (점수: ${emotionScore}), 요약: ${summary.substring(
+      0,
+      30
+    )}...`
+  );
 
-  return { summary, emotion };
+  return {
+    summary: summary || '다양한 주제로 대화를 나눈 하루',
+    emotion,
+    highlight: highlight || '일상 대화',
+  };
 }

@@ -1,0 +1,63 @@
+name: Daily Emotion Analysis
+
+on:
+  schedule:
+    # 매일 12시 (UTC 기준 3시 = 한국시간 12시)
+    - cron: '0 3 * * *'
+  workflow_dispatch: # 수동 실행 가능
+
+jobs:
+  daily-emotion-analysis:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install server dependencies
+        run: |
+          cd server
+          npm install
+
+      - name: Build TypeScript
+        run: |
+          cd server
+          npx tsc
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Generate Prisma client
+        run: |
+          cd server
+          npx prisma generate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Run daily emotion analysis
+        run: |
+          cd server
+          node -e "
+          const { scheduleDailyEmotionSummary } = require('./dist/lib/scheduler.js');
+          (async () => {
+            try {
+              console.log('🕐 Starting daily emotion analysis...');
+              await scheduleDailyEmotionSummary();
+              console.log('✅ Daily emotion analysis completed successfully');
+            } catch (error) {
+              console.error('❌ Daily emotion analysis failed:', error);
+              throw error;
+            }
+          })();
+          "
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          REFRESH_TOKEN_SECRET: ${{ secrets.REFRESH_TOKEN_SECRET }}

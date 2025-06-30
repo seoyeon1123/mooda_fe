@@ -64,3 +64,21 @@ export async function scheduleDailyEmotionSummary() {
     console.error('Error in daily emotion summary:', error);
   }
 }
+
+// GitHub Actions에서 직접 실행할 수 있도록 main 함수 추가
+async function main() {
+  console.log('🚀 Starting daily emotion analysis...');
+  try {
+    await scheduleDailyEmotionSummary();
+    console.log('✅ Daily emotion analysis completed successfully');
+    process.exit(0);
+  } catch (error) {
+    console.error('❌ Daily emotion analysis failed:', error);
+    process.exit(1);
+  }
+}
+
+// 파일이 직접 실행될 때만 main 함수 실행
+if (require.main === module) {
+  main();
+}

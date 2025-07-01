@@ -64,7 +64,7 @@ app.use(
 app.use(express.json());
 
 app.get('/', (req: Request, res: Response) => {
-  res.send('Hello from Mooda Server!');
+  res.send('Hello from Mooda Server! 🚀 Auto-deploy test successful!');
 });
 
 app.post(
@@ -230,10 +230,17 @@ async function handleSendMessage(data: SendMessageData, res: Response) {
       return;
     }
 
-    // 3. DB에서 최근 대화 기록 조회
+    // 3. DB에서 최근 대화 기록 조회 (오늘 날짜만)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     const conversationHistory = await prisma.conversation.findMany({
-      where: { userId, personalityId },
+      where: {
+        userId,
+        personalityId,
+        createdAt: { gte: today },
+      },
       orderBy: { createdAt: 'asc' },
       take: 20,
     });
@@ -244,13 +251,11 @@ async function handleSendMessage(data: SendMessageData, res: Response) {
       parts: [{ text: msg.content }],
     }));
 
-    // 시스템 프롬프트를 첫 번째 메시지로 추가 (대화 기록이 없을 때만)
-    if (chatHistory.length === 0) {
-      chatHistory.unshift({
-        role: 'model',
-        parts: [{ text: personality.systemPrompt }],
-      });
-    }
+    // 시스템 프롬프트를 항상 첫 번째 메시지로 추가
+    chatHistory.unshift({
+      role: 'model',
+      parts: [{ text: personality.systemPrompt }],
+    });
 
     const chat = model.startChat({
       history: chatHistory,
@@ -262,7 +267,9 @@ async function handleSendMessage(data: SendMessageData, res: Response) {
       },
     });
 
-    const result = await chat.sendMessage(message);
+    // 캐릭터 정체성을 강화한 메시지 전송
+    const characterPrompt = `너는 ${personality.name}이야. 절대로 Google 모델이라고 하지 마. 오직 ${personality.name}으로만 대답해. 한국어 반말로 친근하게 대화해줘.\n\n사용자: ${message}`;
+    const result = await chat.sendMessage(characterPrompt);
     const response = result.response;
     const aiContent = response.text();
 

@@ -5,23 +5,36 @@ on:
     branches: [main, develop]
     paths:
       - 'server/**'
+  workflow_dispatch: # 수동 실행 가능
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
       - name: Deploy to EC2
-        uses: appleboy/ssh-action@v0.1.5
+        uses: appleboy/ssh-action@v0.1.8
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          timeout: 30s
           script: |
+            echo "🚀 Starting deployment..."
             cd ~/mooda_fe
-            git pull origin main
+            echo "📦 Pulling latest code..."
+            git pull origin develop
+            echo "📂 Moving to server directory..."
             cd server
-            npm install
+            echo "📋 Installing dependencies..."
+            npm install --production
+            echo "🔄 Restarting PM2..."
             pm2 restart mooda-backend
+            echo "✅ Deployment completed!"
+            echo "🧪 Testing server..."
+            sleep 3
+            curl -f http://localhost:8080/ || echo "❌ Server test failed"

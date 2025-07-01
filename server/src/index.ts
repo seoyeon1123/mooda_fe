@@ -66,7 +66,7 @@ app.use(express.json());
 app.get('/', (req: Request, res: Response) => {
   const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
   res.send(
-    `Hello from Mooda Server! 🚀 Auto-deploy test successful! Last updated: ${now}`
+    `🎉 Mooda Server가 자동 배포로 성공적으로 업데이트되었습니다! ✨ TypeScript 빌드 시스템 완료! Updated: ${now}`
   );
 });
 

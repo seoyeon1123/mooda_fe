@@ -41,14 +41,22 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
   }
 }
 
+// 환경변수 디버깅
+console.log('🔍 Environment Check:');
+console.log('NEXTAUTH_SECRET exists:', !!process.env.NEXTAUTH_SECRET);
+console.log('NEXTAUTH_URL:', process.env.NEXTAUTH_URL);
+console.log('KAKAO_CLIENT_ID exists:', !!process.env.KAKAO_CLIENT_ID);
+console.log('NODE_ENV:', process.env.NODE_ENV);
+
 const authOptions: NextAuthOptions = {
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: process.env.NEXTAUTH_SECRET || 'fallback-secret-for-dev',
   providers: [
     KakaoProvider({
       clientId: process.env.KAKAO_CLIENT_ID!,
       clientSecret: process.env.KAKAO_CLIENT_SECRET!,
     }),
   ],
+  debug: process.env.NODE_ENV === 'development',
   callbacks: {
     async jwt({ token, user, account }) {
       // 초기 로그인 시

@@ -49,7 +49,7 @@ function getDefaultPersonality() {
 const allowedOrigins =
   process.env.NODE_ENV === 'production'
     ? [
-        process.env.FRONTEND_URL || 'https://your-vercel-domain.vercel.app',
+        process.env.FRONTEND_URL || 'https://mooda.vercel.app/',
         'http://localhost:3000', // 로컬 개발용
       ]
     : true; // 개발 환경에서 모든 origin 허용

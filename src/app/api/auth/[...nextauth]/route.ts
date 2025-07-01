@@ -3,6 +3,16 @@ import type { NextAuthOptions } from 'next-auth';
 import KakaoProvider from 'next-auth/providers/kakao';
 import { JWT } from 'next-auth/jwt';
 
+console.log('=== DEBUG INFO ===');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('NEXTAUTH_SECRET exists:', !!process.env.NEXTAUTH_SECRET);
+console.log('NEXTAUTH_SECRET length:', process.env.NEXTAUTH_SECRET?.length);
+console.log(
+  'All NEXTAUTH env vars:',
+  Object.keys(process.env).filter((key) => key.startsWith('NEXTAUTH'))
+);
+console.log('==================');
+
 async function refreshAccessToken(token: JWT): Promise<JWT> {
   try {
     console.log('🔄 REFRESHING ACCESS TOKEN...');
@@ -41,13 +51,33 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
   }
 }
 
+// 환경변수 디버깅
+console.log('🔍 Environment Check:');
+console.log('NEXTAUTH_SECRET exists:', !!process.env.NEXTAUTH_SECRET);
+console.log(
+  'NEXTAUTH_SECRET length:',
+  process.env.NEXTAUTH_SECRET?.length || 0
+);
+console.log('NEXTAUTH_URL:', process.env.NEXTAUTH_URL);
+console.log('KAKAO_CLIENT_ID exists:', !!process.env.KAKAO_CLIENT_ID);
+console.log('NODE_ENV:', process.env.NODE_ENV);
+
+// 더 강력한 secret 설정
+const authSecret =
+  'AEnH88uOQYHgKwbUXbjXvyVHkNRx5sPTX1J/uts5oguCN93vDntmFz0wNOsIn6PY8wSfaR05HVcPCe4JuTC2FA==';
+
+console.log('🔑 Using secret length:', authSecret.length);
+
 const authOptions: NextAuthOptions = {
+  secret: authSecret,
   providers: [
     KakaoProvider({
       clientId: process.env.KAKAO_CLIENT_ID!,
-      clientSecret: process.env.KAKAO_CLIENT_SECRET!,
+      clientSecret:
+        'AEnH88uOQYHgKwbUXbjXvyVHkNRx5sPTX1J/uts5oguCN93vDntmFz0wNOsIn6PY8wSfaR05HVcPCe4JuTC2FA==',
     }),
   ],
+  debug: process.env.NODE_ENV === 'development',
   callbacks: {
     async jwt({ token, user, account }) {
       // 초기 로그인 시

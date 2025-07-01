@@ -114,7 +114,7 @@ JWT_SECRET="dfsfhsdgusdgdjskfsldgus30428dsgsl!dsfs0gusold"
 REFRESH_TOKEN_SECRET="sdfsdgsgsdugosidgjodsighosdighsgihosdigusdoilgudsoigho1233r2s"
 
 NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=abc123def456ghi789jkl012mno345pqr678stu901vwx234yz
+NEXTAUTH_SECRET = AEnH88uOQYHgKwbUXbjXvyVHkNRx5sPTX1J/uts5oguCN93vDntmFz0wNOsIn6PY8wSfaR05HVcPCe4JuTC2FA==
 
 KAKAO_CLIENT_ID=e6210555262d6a2cf68f87fa8bb93309
 KAKAO_CLIENT_SECRET=2POtzHVxffUir2u1pd4ZNPlBAnoFSj2P

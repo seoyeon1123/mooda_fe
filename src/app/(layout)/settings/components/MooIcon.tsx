@@ -37,8 +37,8 @@ export default function MooIcon({ type, size = 40 }: MooIconProps) {
             cx="24"
             cy="24"
             r="20"
-            fill="#8FBC8F"
-            stroke="#5F8A5F"
+            fill="#FFD700"
+            stroke="#FFA500"
             strokeWidth="2"
           />
           {/* 귀 */}
@@ -47,7 +47,7 @@ export default function MooIcon({ type, size = 40 }: MooIconProps) {
             cy="16"
             rx="4"
             ry="6"
-            fill="#7BA05B"
+            fill="#FFB347"
             transform="rotate(-30 16 16)"
           />
           <ellipse
@@ -55,20 +55,28 @@ export default function MooIcon({ type, size = 40 }: MooIconProps) {
             cy="16"
             rx="4"
             ry="6"
-            fill="#7BA05B"
+            fill="#FFB347"
             transform="rotate(30 32 16)"
           />
-          {/* 눈 */}
+          {/* 눈 (반짝이는) */}
           <circle cx="19" cy="21" r="2" fill="#2D4A2D" />
           <circle cx="29" cy="21" r="2" fill="#2D4A2D" />
-          <circle cx="19.5" cy="20.5" r="0.5" fill="white" />
-          <circle cx="29.5" cy="20.5" r="0.5" fill="white" />
+          <circle cx="19.5" cy="20.5" r="0.8" fill="white" />
+          <circle cx="29.5" cy="20.5" r="0.8" fill="white" />
           {/* 코 */}
-          <ellipse cx="24" cy="26" rx="3" ry="2" fill="#6B8E6B" />
-          {/* 입 */}
+          <ellipse cx="24" cy="26" rx="3" ry="2" fill="#FF8C00" />
+          {/* 입 (큰 웃음) */}
           <path
-            d="M 20 30 Q 24 33 28 30"
+            d="M 18 30 Q 24 35 30 30"
             stroke="#2D4A2D"
+            strokeWidth="2"
+            fill="none"
+            strokeLinecap="round"
+          />
+          {/* 에너지 번개 */}
+          <path
+            d="M 35 15 L 32 20 L 35 20 L 32 25"
+            stroke="#FFD700"
             strokeWidth="2"
             fill="none"
             strokeLinecap="round"
@@ -149,22 +157,23 @@ export default function MooIcon({ type, size = 40 }: MooIconProps) {
     case 'energetic':
       return (
         <svg style={iconStyles} viewBox="0 0 48 48" fill="none">
-          {/* 소 얼굴 */}
+          {/* 소 얼굴 - 더 밝고 선명한 색상으로 변경 */}
           <circle
             cx="24"
             cy="24"
             r="20"
-            fill="#FFD700"
-            stroke="#FFA500"
+            fill="#718096"
+            stroke="#2D3748"
             strokeWidth="2"
           />
-          {/* 귀 */}
+
+          {/* 귀 - 더 밝은 색상 */}
           <ellipse
             cx="16"
             cy="16"
             rx="4"
             ry="6"
-            fill="#FFB347"
+            fill="#4A5568"
             transform="rotate(-30 16 16)"
           />
           <ellipse
@@ -172,30 +181,38 @@ export default function MooIcon({ type, size = 40 }: MooIconProps) {
             cy="16"
             rx="4"
             ry="6"
-            fill="#FFB347"
+            fill="#4A5568"
             transform="rotate(30 32 16)"
           />
-          {/* 눈 (반짝이는) */}
-          <circle cx="19" cy="21" r="2" fill="#2D4A2D" />
-          <circle cx="29" cy="21" r="2" fill="#2D4A2D" />
-          <circle cx="19.5" cy="20.5" r="0.8" fill="white" />
-          <circle cx="29.5" cy="20.5" r="0.8" fill="white" />
-          {/* 코 */}
-          <ellipse cx="24" cy="26" rx="3" ry="2" fill="#FF8C00" />
-          {/* 입 (큰 웃음) */}
+
+          {/* 눈 - 더 밝은 빨간색 */}
+          <circle cx="19" cy="21" r="2" fill="#F56565" />
+          <circle cx="29" cy="21" r="2" fill="#F56565" />
+          <circle cx="19.5" cy="20.5" r="0.5" fill="white" />
+          <circle cx="29.5" cy="20.5" r="0.5" fill="white" />
+
+          {/* 코 - 더 밝은 색상 */}
+          <ellipse cx="24" cy="26" rx="3" ry="2" fill="#4A5568" />
+
+          {/* 입 - 더 밝은 빨간색 */}
           <path
-            d="M 18 30 Q 24 35 30 30"
-            stroke="#2D4A2D"
+            d="M 20 30 L 28 30"
+            stroke="#F56565"
             strokeWidth="2"
-            fill="none"
             strokeLinecap="round"
           />
-          {/* 에너지 번개 */}
+
+          {/* 눈썹 - 더 진한 색상으로 대비 */}
           <path
-            d="M 35 15 L 32 20 L 35 20 L 32 25"
-            stroke="#FFD700"
+            d="M 16 18 L 22 19"
+            stroke="#1A202C"
             strokeWidth="2"
-            fill="none"
+            strokeLinecap="round"
+          />
+          <path
+            d="M 26 19 L 32 18"
+            stroke="#1A202C"
+            strokeWidth="2"
             strokeLinecap="round"
           />
         </svg>

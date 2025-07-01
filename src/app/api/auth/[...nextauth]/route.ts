@@ -44,12 +44,25 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
 // 환경변수 디버깅
 console.log('🔍 Environment Check:');
 console.log('NEXTAUTH_SECRET exists:', !!process.env.NEXTAUTH_SECRET);
+console.log(
+  'NEXTAUTH_SECRET length:',
+  process.env.NEXTAUTH_SECRET?.length || 0
+);
 console.log('NEXTAUTH_URL:', process.env.NEXTAUTH_URL);
 console.log('KAKAO_CLIENT_ID exists:', !!process.env.KAKAO_CLIENT_ID);
 console.log('NODE_ENV:', process.env.NODE_ENV);
 
+// 더 강력한 secret 설정
+const authSecret =
+  process.env.NEXTAUTH_SECRET ||
+  (process.env.VERCEL_ENV === 'production'
+    ? 'AEnH88uOQYHgKwbUXbjXvyVHkNRx5sPTX1J/uts5oguCN93vDntmFz0wNOsIn6PY8wSfaR05HVcPCe4JuTC2FA=='
+    : 'fallback-secret-for-dev');
+
+console.log('🔑 Using secret length:', authSecret.length);
+
 const authOptions: NextAuthOptions = {
-  secret: process.env.NEXTAUTH_SECRET || 'fallback-secret-for-dev',
+  secret: authSecret,
   providers: [
     KakaoProvider({
       clientId: process.env.KAKAO_CLIENT_ID!,

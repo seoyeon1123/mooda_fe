@@ -64,7 +64,10 @@ app.use(
 app.use(express.json());
 
 app.get('/', (req: Request, res: Response) => {
-  res.send('Hello from Mooda Server! 🚀 Auto-deploy test successful!');
+  const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+  res.send(
+    `Hello from Mooda Server! 🚀 Auto-deploy test successful! Last updated: ${now}`
+  );
 });
 
 app.post(

@@ -30,10 +30,14 @@ jobs:
             git pull origin develop
             echo "📂 Moving to server directory..."
             cd server
-            echo "📋 Installing dependencies..."
-            npm install --production
-            echo "🔄 Restarting PM2..."
-            pm2 restart mooda-backend
+            echo "📋 Installing dependencies (including dev)..."
+            npm install
+            echo "🔨 Building TypeScript..."
+            npm run build
+            echo "🔄 Restarting PM2 with built JavaScript..."
+            pm2 delete mooda-backend || true
+            pm2 start dist/index.js --name 'mooda-backend'
+            pm2 save
             echo "✅ Deployment completed!"
             echo "🧪 Testing server..."
             sleep 3

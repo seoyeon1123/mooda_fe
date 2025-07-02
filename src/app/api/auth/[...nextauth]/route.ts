@@ -72,7 +72,7 @@ const authOptions: NextAuthOptions = {
   secret: authSecret,
   providers: [
     KakaoProvider({
-      clientId: process.env.KAKAO_CLIENT_ID!,
+      clientId: 'e6210555262d6a2cf68f87fa8bb93309',
       clientSecret:
         'AEnH88uOQYHgKwbUXbjXvyVHkNRx5sPTX1J/uts5oguCN93vDntmFz0wNOsIn6PY8wSfaR05HVcPCe4JuTC2FA==',
     }),

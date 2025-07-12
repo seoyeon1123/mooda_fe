@@ -48,7 +48,7 @@ function getDefaultPersonality() {
 // CORS 설정
 app.use(
   cors({
-    origin: ['http://localhost:3000'],
+    origin: ['http://localhost:3000', 'https://mooda.vercel.app'],
     credentials: true,
   })
 );

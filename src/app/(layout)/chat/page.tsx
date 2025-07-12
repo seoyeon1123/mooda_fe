@@ -2,7 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { getPersonalityById } from '@/lib/ai-personalities';
+import {
+  getPersonalityById,
+  getPersonalityByIdAsync,
+  type AIPersonality,
+} from '@/lib/ai-personalities';
 import { loadConversationHistory, sendChatMessage } from '@/lib/chat-service';
 import type { Message } from '@/lib/chat-types';
 import ChatHeader from '@/app/(layout)/chat/components/ChatHeader';
@@ -25,12 +29,26 @@ export default function ChatTab() {
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [lastMidnight, setLastMidnight] = useState<Date>(() => new Date());
+  const [currentPersonality, setCurrentPersonality] = useState<
+    AIPersonality | undefined
+  >(getPersonalityById(selectedPersonalityId));
 
-  const currentPersonality = getPersonalityById(selectedPersonalityId);
+  // 성격 로드 로직
+  useEffect(() => {
+    const loadPersonality = async () => {
+      const personality = await getPersonalityByIdAsync(selectedPersonalityId);
+      setCurrentPersonality(personality);
+    };
+    loadPersonality();
+  }, [selectedPersonalityId]);
 
   // 채팅 초기화 로직
   useEffect(() => {
-    if (status !== 'authenticated' || !session?.user?.id) {
+    if (
+      status !== 'authenticated' ||
+      !session?.user?.id ||
+      !currentPersonality
+    ) {
       return;
     }
 
@@ -72,7 +90,13 @@ export default function ChatTab() {
       }
     };
     initializeChat();
-  }, [status, session, selectedPersonalityId, ackPersonalityChange]);
+  }, [
+    status,
+    session,
+    selectedPersonalityId,
+    currentPersonality,
+    ackPersonalityChange,
+  ]);
 
   const handleSendMessage = async (messageContent: string) => {
     if (!messageContent.trim() || isLoading) return;

@@ -46,21 +46,14 @@ function getDefaultPersonality() {
 }
 
 // CORS 설정
-const allowedOrigins =
-  process.env.NODE_ENV === 'production'
-    ? [
-        process.env.FRONTEND_URL || 'https://mooda.vercel.app/',
-        'http://localhost:3000', // 로컬 개발용
-      ]
-    : true; // 개발 환경에서 모든 origin 허용
-
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: ['http://localhost:3000'],
     credentials: true,
   })
 );
 
+// JSON 파서 설정
 app.use(express.json());
 
 app.get('/', (req: Request, res: Response) => {
@@ -85,6 +78,7 @@ app.post(
         where: { kakaoId: kakaoId.toString() },
         update: { userName, email },
         create: {
+          id: crypto.randomUUID(),
           kakaoId: kakaoId.toString(),
           email,
           userName,
@@ -220,8 +214,10 @@ async function handleSendMessage(data: SendMessageData, res: Response) {
   try {
     // 1. 사용자 메시지를 DB에 저장
     console.log('💾 사용자 메시지 DB 저장 시작...');
+    // 사용자 메시지 저장
     const userMessage = await prisma.conversation.create({
       data: {
+        id: crypto.randomUUID(),
         userId,
         role: 'user',
         content: message,
@@ -302,8 +298,10 @@ async function handleSendMessage(data: SendMessageData, res: Response) {
 
     // 6. AI 응답을 DB에 저장
     console.log('💾 AI 응답 DB 저장 중...');
+    // AI 응답 저장
     const aiResponse = await prisma.conversation.create({
       data: {
+        id: crypto.randomUUID(),
         userId,
         role: 'ai',
         content: finalContent,
@@ -627,6 +625,7 @@ app.post(
         // 새 로그 생성
         emotionLog = await prisma.emotionLog.create({
           data: {
+            id: crypto.randomUUID(),
             userId,
             date: startDate,
             emotion: analysisResult.emotion,
@@ -668,6 +667,63 @@ app.post(
         error: 'Daily emotion analysis failed',
         details: error instanceof Error ? error.message : 'Unknown error',
       });
+    }
+  }
+);
+
+// Custom AI Personality API
+app.post(
+  '/api/custom-ai',
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { userId, name, mbtiTypes, systemPrompt, description } = req.body;
+
+      if (!userId || !name || !systemPrompt || !description) {
+        res.status(400).json({ error: 'Required fields are missing' });
+        return;
+      }
+
+      const customAI = await prisma.customAIPersonality.create({
+        data: {
+          id: crypto.randomUUID(),
+          userId,
+          name,
+          mbtiTypes,
+          systemPrompt,
+          description,
+          updatedAt: new Date(),
+        },
+      });
+
+      res.status(200).json({ success: true, customAI });
+    } catch (error) {
+      console.error('Error creating custom AI:', error);
+      res.status(500).json({ error: 'Failed to create custom AI personality' });
+    }
+  }
+);
+
+app.get(
+  '/api/custom-ai',
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const userId = req.query.userId as string;
+      if (!userId) {
+        res.status(400).json({ error: 'userId is required' });
+        return;
+      }
+
+      const customAIs = await prisma.customAIPersonality.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      res.status(200).json(customAIs);
+    } catch (error) {
+      console.error('Error fetching custom AIs:', error);
+      res
+        .status(500)
+        .json({ error: 'Failed to fetch custom AI personalities' });
     }
   }
 );

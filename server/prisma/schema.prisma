@@ -8,40 +8,57 @@ datasource db {
 }
 
 model User {
-  id            String         @id @default(uuid())
-  email         String?        @unique
-  kakaoId       String         @unique @map("kakao_id")
-  createdAt     DateTime       @default(now()) @map("created_at")
-  userName      String         @map("user_name")
-  refreshToken  String?        @map("refresh_token")
-  conversations Conversation[]
-  emotionLogs   EmotionLog[]
+  id                    String               @id
+  email                 String?              @unique
+  kakaoId              String               @unique @map("kakao_id")
+  createdAt            DateTime             @default(now())
+  userName             String
+  refreshToken         String?
+  selectedPersonalityId String?              @default("MUNI")
+  conversations        Conversation[]
+  customAIPersonalities CustomAIPersonality[]
+  emotionLogs          EmotionLog[]
 
   @@map("users")
 }
 
 model Conversation {
-  id            String   @id @default(uuid())
-  userId        String   @map("user_id")
+  id            String   @id
+  userId        String
   content       String
-  createdAt     DateTime @default(now()) @map("created_at")
+  createdAt     DateTime @default(now())
   role          String
-  personalityId String?  @map("personality_id")
+  personalityId String?
   user          User     @relation(fields: [userId], references: [id])
 
   @@map("conversations")
 }
 
-model EmotionLog {
-  id           String   @id @default(uuid())
-  userId       String   @map("user_id")
-  date         DateTime @db.Date
-  summary      String
-  emotion      String
-  shortSummary String?  @map("short_summary")
-  characterName String? @map("character_name")
-  createdAt    DateTime @default(now()) @map("created_at")
+model CustomAIPersonality {
+  id           String   @id
+  userId       String
+  name         String
+  mbtiTypes    Json
+  systemPrompt String
+  description  String
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime
   user         User     @relation(fields: [userId], references: [id])
+
+  @@map("custom_ai_personalities")
+}
+
+model EmotionLog {
+  id            String   @id
+  userId        String
+  date          DateTime @db.Date
+  summary       String
+  emotion       String
+  createdAt     DateTime @default(now())
+  characterName String?
+  shortSummary  String?
+  user          User     @relation(fields: [userId], references: [id])
 
   @@unique([userId, date])
   @@map("emotion_logs")

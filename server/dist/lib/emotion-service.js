@@ -85,12 +85,13 @@ function saveEmotionLog(userId, date, summary, emotion) {
     return __awaiter(this, void 0, void 0, function* () {
         return prisma_1.default.emotionLog.create({
             data: {
+                id: crypto.randomUUID(),
                 userId,
                 date,
-                summary: (0, exports.emotionToPercentage)(emotion), // 감정 퍼센트
                 emotion,
-                shortSummary: summary, // 실제 요약 내용
-                characterName: (0, exports.emotionToSvg)(emotion), // 이미지 경로
+                summary: (0, exports.emotionToPercentage)(emotion),
+                shortSummary: summary,
+                characterName: (0, exports.emotionToSvg)(emotion),
             },
         });
     });
@@ -120,10 +121,11 @@ function upsertEmotionLog(userId, date, summary, emotion) {
             // 생성
             return prisma_1.default.emotionLog.create({
                 data: {
+                    id: crypto.randomUUID(),
                     userId,
                     date,
-                    summary: (0, exports.emotionToPercentage)(emotion), // 감정 퍼센트
                     emotion,
+                    summary: (0, exports.emotionToPercentage)(emotion), // 감정 퍼센트
                     shortSummary: summary, // 실제 요약 내용
                     characterName: (0, exports.emotionToSvg)(emotion), // 이미지 경로
                 },
@@ -135,42 +137,37 @@ function summarizeAndAnalyzeWithGemini(messages) {
     return __awaiter(this, void 0, void 0, function* () {
         var _a, _b, _c, _d, _e, _f, _g;
         const prompt = `
-당신은 사용자의 하루 일상과 감정을 분석하는 전문가입니다.
-아래는 사용자가 하루 동안 표현한 생각, 감정, 경험들입니다.
+당신은 친근한 일기 작성 도우미입니다. 사용자의 하루를 자연스럽고 따뜻하게 요약해주세요.
 
-대화 내용:
+사용자의 하루 이야기:
 ${messages.join('\n')}
 
-분석 지침:
-1. 사용자가 실제로 무엇을 했는지, 어떤 상황에 있었는지에 집중하세요
-2. 사용자의 감정 상태와 기분 변화를 파악하세요  
-3. 절대로 "AI와 대화", "메뉴 추천을 받았다", "대화를 나눴다" 등의 표현을 사용하지 마세요
-4. 사용자가 언급한 실제 활동, 상황, 감정만 언급하세요
+요약 가이드라인:
+1. 마치 친구가 일기를 써주는 것처럼 친근하고 자연스럽게 작성
+2. 사용자의 실제 활동과 감정에 집중 (AI, 대화, 추천 등 언급 금지)
+3. 일상적인 말투로 편안하게 표현
+4. 사용자 입장에서 "나는 오늘..." 식으로 생각하며 작성
 
-올바른 분석 예시:
-- "배가 고파서 음식을 고민하며 보낸 하루"
-- "회사 업무로 피곤하고 스트레스를 받은 하루" 
-- "친구들과 즐거운 시간을 보낸 기분 좋은 하루"
-
-잘못된 분석 예시:
-- "AI와 대화를 나눴다"
-- "메뉴 추천을 받았다"
-- "대화를 통해 무엇을 했다"
+좋은 요약 예시:
+- "오늘은 저녁 메뉴를 고민하다가 결국 고등어회가 땡겨서 먹고 싶어했어요 😊"
+- "회사 일로 좀 피곤했지만 그래도 하루를 무사히 보냈네요"
+- "친구들과 만나서 수다 떨며 즐거운 시간 보낸 기분 좋은 하루였어요"
+- "비 오는 날씨 때문에 기분이 조금 우울했지만 집에서 편안히 쉬었어요"
 
 다음 JSON 형식으로 응답해주세요:
 {
-  "summary": "사용자의 실제 하루 일상과 감정 상태 요약 (1-2문장, AI 대화 언급 금지)",
+  "summary": "친근하고 자연스러운 하루 요약 (이모지 포함 가능, 1-2문장)",
   "emotion": "VeryHappy, Happy, Neutral, Sad, VerySad, Angry 중 하나",
-  "highlight": "사용자가 경험한 가장 중요한 감정이나 상황"
+  "highlight": "오늘 가장 기억에 남는 감정이나 일"
 }
 
-감정 분류 기준:
-- VeryHappy: 매우 기쁘고 즐거운 상태
-- Happy: 기분 좋고 긍정적인 상태  
-- Neutral: 평범하고 일상적인 상태
-- Sad: 슬프거나 우울한 상태
-- VerySad: 매우 슬프거나 절망적인 상태
-- Angry: 화나거나 짜증나는 상태
+감정 분류:
+- VeryHappy: 정말 기쁘고 신나는 날 🎉
+- Happy: 기분 좋고 만족스러운 날 😊  
+- Neutral: 평범하고 무난한 일상 😐
+- Sad: 조금 슬프거나 아쉬운 날 😢
+- VerySad: 많이 힘들거나 우울한 날 😭
+- Angry: 짜증나거나 화가 난 날 😠
 `;
         try {
             console.log('🔍 Gemini API 호출 시작...');

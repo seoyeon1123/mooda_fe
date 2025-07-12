@@ -3,7 +3,27 @@ export interface AIPersonality {
   name: string;
   description: string;
   shortDescription: string;
-  iconType: 'friendly' | 'wise' | 'energetic' | 'calm';
+  iconType:
+    | 'friendly'
+    | 'wise'
+    | 'energetic'
+    | 'calm'
+    | 'INTJ'
+    | 'INTP'
+    | 'ENTJ'
+    | 'ENTP'
+    | 'INFJ'
+    | 'INFP'
+    | 'ENFJ'
+    | 'ENFP'
+    | 'ISTJ'
+    | 'ISFJ'
+    | 'ESTJ'
+    | 'ESFJ'
+    | 'ISTP'
+    | 'ISFP'
+    | 'ESTP'
+    | 'ESFP';
   color: string;
   personalitySummary: string;
   signaturePhrases: string[];
@@ -14,6 +34,19 @@ export interface AIPersonality {
   };
   systemPrompt: string;
   exampleMessages: string[];
+}
+
+interface CustomAI {
+  id: string;
+  name: string;
+  description: string;
+  mbtiTypes: {
+    energy: 'I' | 'E';
+    information: 'S' | 'N';
+    decisions: 'T' | 'F';
+    lifestyle: 'J' | 'P';
+  };
+  createdAt: Date;
 }
 
 export const AI_PERSONALITIES: AIPersonality[] = [
@@ -172,6 +205,73 @@ export const AI_PERSONALITIES: AIPersonality[] = [
 
 export const getPersonalityById = (id: string): AIPersonality | undefined => {
   return AI_PERSONALITIES.find((personality) => personality.id === id);
+};
+
+// 커스텀 AI도 포함해서 성격을 찾는 비동기 함수
+export const getPersonalityByIdAsync = async (
+  id: string
+): Promise<AIPersonality | undefined> => {
+  // 1. 먼저 기본 AI에서 찾기
+  const basicPersonality = AI_PERSONALITIES.find(
+    (personality) => personality.id === id
+  );
+  if (basicPersonality) {
+    return basicPersonality;
+  }
+
+  // 2. 커스텀 AI에서 찾기
+  try {
+    const response = await fetch('/api/custom-ai');
+    if (response.ok) {
+      const customAIs = await response.json();
+      const customAI = customAIs.find((ai: CustomAI) => ai.id === id);
+
+      if (customAI) {
+        // MBTI 타입으로 아이콘 결정
+        const mbtiType =
+          `${customAI.mbtiTypes.energy}${customAI.mbtiTypes.information}${customAI.mbtiTypes.decisions}${customAI.mbtiTypes.lifestyle}` as
+            | 'INTJ'
+            | 'INTP'
+            | 'ENTJ'
+            | 'ENTP'
+            | 'INFJ'
+            | 'INFP'
+            | 'ENFJ'
+            | 'ENFP'
+            | 'ISTJ'
+            | 'ISFJ'
+            | 'ESTJ'
+            | 'ESFJ'
+            | 'ISTP'
+            | 'ISFP'
+            | 'ESTP'
+            | 'ESFP';
+
+        // 커스텀 AI를 AIPersonality 형식으로 변환
+        return {
+          id: customAI.id,
+          name: customAI.name,
+          description: customAI.description,
+          shortDescription: customAI.description,
+          iconType: mbtiType, // MBTI에 따른 동물 아이콘 사용
+          color: 'bg-purple-100 border-purple-300',
+          personalitySummary: '사용자 맞춤형 AI 성격',
+          signaturePhrases: ['맞춤형 대화', '개인화된 응답'],
+          speechStyle: {
+            tone: '개인 맞춤형 톤',
+            reaction: '사용자 성향에 맞춘 반응',
+            keywords: ['맞춤형', '개인화', '사용자 중심'],
+          },
+          systemPrompt: '', // 실제로는 서버에서 가져옴
+          exampleMessages: ['안녕! 나는 너를 위해 만들어진 AI야'],
+        };
+      }
+    }
+  } catch (error) {
+    console.error('커스텀 AI 조회 오류:', error);
+  }
+
+  return undefined;
 };
 
 export const getDefaultPersonality = (): AIPersonality => {

@@ -46,21 +46,14 @@ function getDefaultPersonality() {
 }
 
 // CORS 설정
-const allowedOrigins =
-  process.env.NODE_ENV === 'production'
-    ? [
-        process.env.FRONTEND_URL || 'https://mooda.vercel.app/',
-        'http://localhost:3000', // 로컬 개발용
-      ]
-    : true; // 개발 환경에서 모든 origin 허용
-
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: ['http://localhost:3000'],
     credentials: true,
   })
 );
 
+// JSON 파서 설정
 app.use(express.json());
 
 app.get('/', (req: Request, res: Response) => {
@@ -85,6 +78,7 @@ app.post(
         where: { kakaoId: kakaoId.toString() },
         update: { userName, email },
         create: {
+          id: crypto.randomUUID(),
           kakaoId: kakaoId.toString(),
           email,
           userName,
@@ -213,16 +207,24 @@ async function handleSendMessage(data: SendMessageData, res: Response) {
     return;
   }
 
+  console.log('🚀 handleSendMessage 시작:', { message, userId, personalityId });
+  console.log('🔑 GEMINI_API_KEY 존재 여부:', !!process.env.GEMINI_API_KEY);
+  console.log('🔑 API 키 길이:', process.env.GEMINI_API_KEY?.length);
+
   try {
     // 1. 사용자 메시지를 DB에 저장
+    console.log('💾 사용자 메시지 DB 저장 시작...');
+    // 사용자 메시지 저장
     const userMessage = await prisma.conversation.create({
       data: {
+        id: crypto.randomUUID(),
         userId,
         role: 'user',
         content: message,
         personalityId,
       },
     });
+    console.log('✅ 사용자 메시지 저장 완료:', userMessage.id);
 
     // 2. AI 성격 설정 가져오기
     const personality = personalityId
@@ -232,12 +234,15 @@ async function handleSendMessage(data: SendMessageData, res: Response) {
       res.status(400).json({ error: 'Invalid personality ID' });
       return;
     }
+    console.log('🎭 성격 설정:', personality.name);
 
     // 3. DB에서 최근 대화 기록 조회 (오늘 날짜만)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    console.log('🤖 Gemini AI 모델 초기화 중...');
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
     const conversationHistory = await prisma.conversation.findMany({
       where: {
         userId,
@@ -247,6 +252,7 @@ async function handleSendMessage(data: SendMessageData, res: Response) {
       orderBy: { createdAt: 'asc' },
       take: 20,
     });
+    console.log('📚 대화 기록 개수:', conversationHistory.length);
 
     // 대화 기록을 Gemini 형식으로 변환
     const chatHistory = conversationHistory.map((msg: Conversation) => ({
@@ -254,12 +260,9 @@ async function handleSendMessage(data: SendMessageData, res: Response) {
       parts: [{ text: msg.content }],
     }));
 
-    // 시스템 프롬프트를 항상 첫 번째 메시지로 추가
-    chatHistory.unshift({
-      role: 'model',
-      parts: [{ text: personality.systemPrompt }],
-    });
-
+    // Gemini API 요구사항: 첫 번째 메시지는 반드시 'user' 역할이어야 함
+    // 시스템 프롬프트를 사용자 메시지에 포함시킴
+    console.log('💬 채팅 세션 시작...');
     const chat = model.startChat({
       history: chatHistory,
       generationConfig: {
@@ -270,11 +273,14 @@ async function handleSendMessage(data: SendMessageData, res: Response) {
       },
     });
 
-    // 캐릭터 정체성을 강화한 메시지 전송
-    const characterPrompt = `너는 ${personality.name}이야. 절대로 Google 모델이라고 하지 마. 오직 ${personality.name}으로만 대답해. 한국어 반말로 친근하게 대화해줘.\n\n사용자: ${message}`;
+    // 시스템 프롬프트와 사용자 메시지를 결합
+    const characterPrompt = `${personality.systemPrompt}\n\n사용자: ${message}`;
+    console.log('📤 AI에게 메시지 전송 중...');
+
     const result = await chat.sendMessage(characterPrompt);
     const response = result.response;
     const aiContent = response.text();
+    console.log('📥 AI 응답 받음:', aiContent.substring(0, 50) + '...');
 
     // 5. AI 응답 길이 제한
     let finalContent = aiContent;
@@ -291,16 +297,21 @@ async function handleSendMessage(data: SendMessageData, res: Response) {
     }
 
     // 6. AI 응답을 DB에 저장
+    console.log('💾 AI 응답 DB 저장 중...');
+    // AI 응답 저장
     const aiResponse = await prisma.conversation.create({
       data: {
+        id: crypto.randomUUID(),
         userId,
         role: 'ai',
         content: finalContent,
         personalityId,
       },
     });
+    console.log('✅ AI 응답 저장 완료:', aiResponse.id);
 
     // 7. 클라이언트에 결과 반환
+    console.log('📤 클라이언트에 응답 전송');
     res.json({
       userMessage,
       aiResponse,
@@ -312,7 +323,16 @@ async function handleSendMessage(data: SendMessageData, res: Response) {
       },
     });
   } catch (error) {
-    console.error('Send message error:', error);
+    console.error('❌ Send message error 상세:', error);
+    console.error('❌ Error type:', typeof error);
+    console.error(
+      '❌ Error message:',
+      error instanceof Error ? error.message : 'Unknown error'
+    );
+    console.error(
+      '❌ Error stack:',
+      error instanceof Error ? error.stack : 'No stack'
+    );
     res.status(500).json({ error: 'Failed to generate AI response' });
   }
 }
@@ -605,6 +625,7 @@ app.post(
         // 새 로그 생성
         emotionLog = await prisma.emotionLog.create({
           data: {
+            id: crypto.randomUUID(),
             userId,
             date: startDate,
             emotion: analysisResult.emotion,
@@ -646,6 +667,63 @@ app.post(
         error: 'Daily emotion analysis failed',
         details: error instanceof Error ? error.message : 'Unknown error',
       });
+    }
+  }
+);
+
+// Custom AI Personality API
+app.post(
+  '/api/custom-ai',
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { userId, name, mbtiTypes, systemPrompt, description } = req.body;
+
+      if (!userId || !name || !systemPrompt || !description) {
+        res.status(400).json({ error: 'Required fields are missing' });
+        return;
+      }
+
+      const customAI = await prisma.customAIPersonality.create({
+        data: {
+          id: crypto.randomUUID(),
+          userId,
+          name,
+          mbtiTypes,
+          systemPrompt,
+          description,
+          updatedAt: new Date(),
+        },
+      });
+
+      res.status(200).json({ success: true, customAI });
+    } catch (error) {
+      console.error('Error creating custom AI:', error);
+      res.status(500).json({ error: 'Failed to create custom AI personality' });
+    }
+  }
+);
+
+app.get(
+  '/api/custom-ai',
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const userId = req.query.userId as string;
+      if (!userId) {
+        res.status(400).json({ error: 'userId is required' });
+        return;
+      }
+
+      const customAIs = await prisma.customAIPersonality.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      res.status(200).json(customAIs);
+    } catch (error) {
+      console.error('Error fetching custom AIs:', error);
+      res
+        .status(500)
+        .json({ error: 'Failed to fetch custom AI personalities' });
     }
   }
 );

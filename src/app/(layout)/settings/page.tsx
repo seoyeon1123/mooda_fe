@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   User,
   Bell,
@@ -11,7 +11,7 @@ import {
   Camera,
 } from 'lucide-react';
 import type { AIPersonality } from '@/lib/ai-personalities';
-import { getPersonalityById } from '@/lib/ai-personalities';
+import { getPersonalityByIdAsync } from '@/lib/ai-personalities';
 import PersonalitySelector from './components/PersonalitySelector';
 import MooIcon from './components/MooIcon';
 import { signOut } from 'next-auth/react';
@@ -20,12 +20,34 @@ import Image from 'next/image';
 
 export default function SettingsPage() {
   const [showPersonalitySelector, setShowPersonalitySelector] = useState(false);
-  const { user, selectedPersonalityId, setSelectedPersonalityId, clearUser } =
-    useUserStore();
-  const selectedPersonality = getPersonalityById(selectedPersonalityId);
+  const [selectedPersonality, setSelectedPersonality] =
+    useState<AIPersonality | null>(null);
+  const {
+    user,
+    selectedPersonalityId,
+    saveSelectedPersonalityId,
+    loadUserData,
+    clearUser,
+  } = useUserStore();
 
-  const handlePersonalityChange = (personality: AIPersonality) => {
-    setSelectedPersonalityId(personality.id);
+  useEffect(() => {
+    // 로그인 시 사용자 데이터 불러오기
+    if (user) {
+      loadUserData();
+    }
+  }, [user, loadUserData]);
+
+  // 선택된 성격 로드 (커스텀 AI 포함)
+  useEffect(() => {
+    const loadSelectedPersonality = async () => {
+      const personality = await getPersonalityByIdAsync(selectedPersonalityId);
+      setSelectedPersonality(personality || null);
+    };
+    loadSelectedPersonality();
+  }, [selectedPersonalityId]);
+
+  const handlePersonalityChange = async (personality: AIPersonality) => {
+    await saveSelectedPersonalityId(personality.id);
     setShowPersonalitySelector(false);
   };
 

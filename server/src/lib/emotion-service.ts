@@ -72,12 +72,13 @@ export async function saveEmotionLog(
 ) {
   return prisma.emotionLog.create({
     data: {
+      id: crypto.randomUUID(),
       userId,
       date,
-      summary: emotionToPercentage(emotion), // 감정 퍼센트
       emotion,
-      shortSummary: summary, // 실제 요약 내용
-      characterName: emotionToSvg(emotion), // 이미지 경로
+      summary: emotionToPercentage(emotion),
+      shortSummary: summary,
+      characterName: emotionToSvg(emotion),
     },
   });
 }
@@ -111,10 +112,11 @@ export async function upsertEmotionLog(
     // 생성
     return prisma.emotionLog.create({
       data: {
+        id: crypto.randomUUID(),
         userId,
         date,
-        summary: emotionToPercentage(emotion), // 감정 퍼센트
         emotion,
+        summary: emotionToPercentage(emotion), // 감정 퍼센트
         shortSummary: summary, // 실제 요약 내용
         characterName: emotionToSvg(emotion), // 이미지 경로
       },

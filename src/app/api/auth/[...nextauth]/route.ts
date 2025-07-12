@@ -76,6 +76,10 @@ const authOptions: NextAuthOptions = {
       clientSecret: process.env.KAKAO_CLIENT_SECRET!,
     }),
   ],
+  session: {
+    strategy: 'jwt',
+    maxAge: 30 * 24 * 60 * 60, // 30일
+  },
   debug: process.env.NODE_ENV === 'development',
   callbacks: {
     async jwt({ token, user, account }) {
@@ -156,4 +160,4 @@ const authOptions: NextAuthOptions = {
 };
 
 const handler = NextAuth(authOptions);
-export { handler as GET, handler as POST };
+export { handler as GET, handler as POST, authOptions };

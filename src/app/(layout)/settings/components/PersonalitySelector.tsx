@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AI_PERSONALITIES, type AIPersonality } from '@/lib/ai-personalities';
 import { Check, Plus } from 'lucide-react';
 import MooIcon from './MooIcon';
@@ -308,13 +308,7 @@ export default function PersonalitySelector({
   const [loading, setLoading] = useState(true);
   const { data: session } = useSession();
 
-  useEffect(() => {
-    if (session?.user?.id) {
-      fetchCustomAIs();
-    }
-  }, [session]);
-
-  const fetchCustomAIs = async () => {
+  const fetchCustomAIs = useCallback(async () => {
     if (!session?.user?.id) return;
 
     try {
@@ -330,7 +324,13 @@ export default function PersonalitySelector({
     } finally {
       setLoading(false);
     }
-  };
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    if (session?.user?.id) {
+      fetchCustomAIs();
+    }
+  }, [session?.user?.id, fetchCustomAIs]);
 
   const handleCustomAISelect = (customAI: CustomAI) => {
     const texts = generateMbtiTexts(customAI.mbtiTypes);

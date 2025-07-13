@@ -1,6 +1,7 @@
 // stores/userStore.ts
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { getSession } from 'next-auth/react';
 
 interface UserState {
   user: {
@@ -34,26 +35,64 @@ const useUserStore = create<UserState>()(
         }
       },
       saveSelectedPersonalityId: async (id) => {
-        // 모든 성격(기본 + 커스텀)을 로컬 스토리지에만 저장
-        const currentId = get().selectedPersonalityId;
-        if (currentId !== id) {
-          set({ selectedPersonalityId: id, personalityChanged: true });
+        try {
+          const session = await getSession();
+          if (!session?.user?.id) {
+            console.error('세션 정보가 없습니다.');
+            return;
+          }
+
+          const response = await fetch(`http://localhost:8080/api/user`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              userId: session.user.id,
+              selectedPersonalityId: id,
+            }),
+            credentials: 'include',
+          });
+
+          if (response.ok) {
+            set({ selectedPersonalityId: id, personalityChanged: true });
+          } else {
+            const errorData = await response.json();
+            console.error('성격 저장 실패:', errorData);
+          }
+        } catch (error) {
+          console.error('성격 저장 중 오류:', error);
         }
       },
       loadUserData: async () => {
         try {
-          const response = await fetch('/api/user');
+          const session = await getSession();
+          if (!session?.user?.id) {
+            console.log('세션 정보 없음');
+            return;
+          }
+
+          const response = await fetch(
+            `http://localhost:8080/api/user?userId=${session.user.id}`,
+            {
+              credentials: 'include',
+            }
+          );
+
           if (response.ok) {
             const userData = await response.json();
             set({
               user: {
                 id: userData.id,
-                name: userData.name,
+                name: userData.userName,
                 email: userData.email,
                 image: userData.image,
               },
               selectedPersonalityId: userData.selectedPersonalityId || 'MUNI',
             });
+          } else {
+            const errorData = await response.json();
+            console.error('사용자 데이터 로드 실패:', errorData);
           }
         } catch (error) {
           console.error('사용자 데이터 로드 실패:', error);

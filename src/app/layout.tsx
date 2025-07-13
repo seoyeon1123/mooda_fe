@@ -12,11 +12,14 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="ko">
+      <head>
+        <link rel="icon" href="/images/logo.svg" type="image/svg+xml" />
+      </head>
       <body className={inter.className}>
         <ClientSessionProvider>
           <div className="mx-auto max-w-[375px] min-h-screen bg-stone-100">

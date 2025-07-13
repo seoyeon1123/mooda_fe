@@ -8,16 +8,17 @@ datasource db {
 }
 
 model User {
-  id                    String               @id
-  email                 String?              @unique
-  kakaoId              String               @unique @map("kakao_id")
-  createdAt            DateTime             @default(now())
-  userName             String
-  refreshToken         String?
-  selectedPersonalityId String?              @default("MUNI")
-  conversations        Conversation[]
+  id                    String                @id
+  email                 String?               @unique
+  kakaoId               String                @unique @map("kakao_id")
+  createdAt             DateTime              @default(now())
+  userName              String
+  image                 String?
+  refreshToken          String?
+  selectedPersonalityId String?               @default("MUNI")
+  conversations         Conversation[]
   customAIPersonalities CustomAIPersonality[]
-  emotionLogs          EmotionLog[]
+  emotionLogs           EmotionLog[]
 
   @@map("users")
 }
@@ -38,7 +39,7 @@ model CustomAIPersonality {
   id           String   @id
   userId       String
   name         String
-  mbtiTypes    Json
+  mbtiTypes    String
   systemPrompt String
   description  String
   isActive     Boolean  @default(true)

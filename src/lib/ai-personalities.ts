@@ -1,3 +1,5 @@
+import { getSession } from 'next-auth/react';
+
 export interface AIPersonality {
   id: string;
   name: string;
@@ -221,54 +223,58 @@ export const getPersonalityByIdAsync = async (
 
   // 2. 커스텀 AI에서 찾기
   try {
-    const response = await fetch('/api/custom-ai');
-    if (response.ok) {
-      const customAIs = await response.json();
-      const customAI = customAIs.find((ai: CustomAI) => ai.id === id);
+    const session = await getSession();
+    if (!session?.user?.id) {
+      console.error('No user session found');
+      return undefined;
+    }
 
-      if (customAI) {
-        // MBTI 타입으로 아이콘 결정
-        const mbtiType =
-          `${customAI.mbtiTypes.energy}${customAI.mbtiTypes.information}${customAI.mbtiTypes.decisions}${customAI.mbtiTypes.lifestyle}` as
-            | 'INTJ'
-            | 'INTP'
-            | 'ENTJ'
-            | 'ENTP'
-            | 'INFJ'
-            | 'INFP'
-            | 'ENFJ'
-            | 'ENFP'
-            | 'ISTJ'
-            | 'ISFJ'
-            | 'ESTJ'
-            | 'ESFJ'
-            | 'ISTP'
-            | 'ISFP'
-            | 'ESTP'
-            | 'ESFP';
+    console.log('🔍 커스텀 AI 조회 중:', id);
+    const response = await fetch(
+      `http://localhost:8080/api/custom-ai?userId=${session.user.id}`
+    );
 
-        // 커스텀 AI를 AIPersonality 형식으로 변환
-        return {
-          id: customAI.id,
-          name: customAI.name,
-          description: customAI.description,
-          shortDescription: customAI.description,
-          iconType: mbtiType, // MBTI에 따른 동물 아이콘 사용
-          color: 'bg-purple-100 border-purple-300',
-          personalitySummary: '사용자 맞춤형 AI 성격',
-          signaturePhrases: ['맞춤형 대화', '개인화된 응답'],
-          speechStyle: {
-            tone: '개인 맞춤형 톤',
-            reaction: '사용자 성향에 맞춘 반응',
-            keywords: ['맞춤형', '개인화', '사용자 중심'],
-          },
-          systemPrompt: '', // 실제로는 서버에서 가져옴
-          exampleMessages: ['안녕! 나는 너를 위해 만들어진 AI야'],
-        };
-      }
+    if (!response.ok) {
+      console.error('커스텀 AI 조회 실패:', response.status);
+      return undefined;
+    }
+
+    const customAIs = await response.json();
+    console.log('📝 조회된 커스텀 AI 목록:', customAIs);
+
+    const customAI = customAIs.find((ai: CustomAI) => ai.id === id);
+    if (customAI) {
+      console.log('✅ 커스텀 AI 찾음:', customAI.name);
+
+      // MBTI 타입으로 아이콘 결정
+      const mbtiTypes =
+        typeof customAI.mbtiTypes === 'string'
+          ? JSON.parse(customAI.mbtiTypes)
+          : customAI.mbtiTypes;
+      const mbtiType = `${mbtiTypes.energy}${mbtiTypes.information}${mbtiTypes.decisions}${mbtiTypes.lifestyle}`;
+
+      return {
+        id: customAI.id,
+        name: customAI.name,
+        description: customAI.description,
+        shortDescription: customAI.description,
+        iconType: mbtiType as AIPersonality['iconType'],
+        color: 'bg-purple-100 border-purple-300',
+        personalitySummary: customAI.description,
+        signaturePhrases: [],
+        speechStyle: {
+          tone: '자연스러운 반말',
+          reaction: '개성있는 대화',
+          keywords: [],
+        },
+        systemPrompt: customAI.systemPrompt,
+        exampleMessages: [],
+      };
+    } else {
+      console.log('⚠️ 커스텀 AI를 찾을 수 없음:', id);
     }
   } catch (error) {
-    console.error('커스텀 AI 조회 오류:', error);
+    console.error('커스텀 AI 조회 중 오류:', error);
   }
 
   return undefined;

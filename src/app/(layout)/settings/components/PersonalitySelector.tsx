@@ -25,11 +25,39 @@ interface PersonalitySelectorProps {
 }
 
 // MBTI 타입별 아이콘 매핑
-const getMbtiIcon = (
-  mbti: CustomAI['mbtiTypes']
-): AIPersonality['iconType'] => {
-  const mbtiString = `${mbti.energy}${mbti.information}${mbti.decisions}${mbti.lifestyle}`;
-  return mbtiString as AIPersonality['iconType'];
+const getMbtiIcon = (mbti: unknown): AIPersonality['iconType'] => {
+  try {
+    // 문자열인 경우 파싱 시도
+    if (typeof mbti === 'string') {
+      // "INFJ" 형태의 문자열인 경우
+      if (mbti.length === 4 && /^[EINTJSFP]+$/.test(mbti)) {
+        return mbti as AIPersonality['iconType'];
+      }
+      // JSON 문자열인 경우 파싱
+      const parsed = JSON.parse(mbti);
+      if (parsed && typeof parsed === 'object') {
+        mbti = parsed;
+      }
+    }
+
+    // 객체인 경우 MBTI 문자열 생성
+    if (mbti && typeof mbti === 'object' && 'energy' in mbti) {
+      const mbtiObj = mbti as {
+        energy: string;
+        information: string;
+        decisions: string;
+        lifestyle: string;
+      };
+      const mbtiString = `${mbtiObj.energy}${mbtiObj.information}${mbtiObj.decisions}${mbtiObj.lifestyle}`;
+      return mbtiString as AIPersonality['iconType'];
+    }
+
+    // 기본값 반환
+    return 'friendly';
+  } catch (error) {
+    console.error('MBTI 파싱 오류:', error, mbti);
+    return 'friendly';
+  }
 };
 
 // MBTI 타입별 특성 문구 생성

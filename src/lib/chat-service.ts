@@ -16,11 +16,12 @@ export const loadConversationHistory = async (
   personalityId: string
 ): Promise<Message[]> => {
   try {
-    const response = await fetch('/api/socket', {
+    const response = await fetch(`http://localhost:8080/api/socket`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include',
       body: JSON.stringify({
         action: 'get-conversation-history',
         data: { userId, personalityId },
@@ -46,32 +47,58 @@ export const sendChatMessage = async (
   personalityId: string
 ): Promise<ChatResponse | null> => {
   try {
-    const response = await fetch('/api/socket', {
+    // 세션 확인
+    const session = await fetch('/api/auth/session');
+    if (!session.ok) {
+      throw new Error('인증이 필요합니다');
+    }
+
+    console.log('Sending message with data:', {
+      action: 'send-message',
+      data: { message, userId, personalityId },
+    });
+
+    const response = await fetch(`http://localhost:8080/api/socket`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include',
       body: JSON.stringify({
         action: 'send-message',
-        data: {
-          message,
-          userId,
-          personalityId,
-        },
+        data: { message, userId, personalityId },
       }),
     });
 
     if (!response.ok) {
-      throw new Error('메시지 전송 실패');
+      console.error(
+        'Server response not OK:',
+        response.status,
+        response.statusText
+      );
+      let errorMessage = '메시지 전송 실패';
+      try {
+        const errorResponse = await response.json();
+        console.error('Error response:', errorResponse);
+        errorMessage = errorResponse.error || errorMessage;
+      } catch {
+        const errorText = await response.text();
+        console.error('Error response text:', errorText);
+      }
+      throw new Error(errorMessage);
     }
 
     const result: ChatResponse = await response.json();
-    if (result.success) {
-      return result;
+    console.log('Server response:', result);
+
+    if (!result.success) {
+      console.error('Server indicated failure:', result);
+      return null;
     }
-    return null;
+
+    return result;
   } catch (error) {
     console.error('메시지 전송 오류:', error);
-    return null;
+    throw error;
   }
 };

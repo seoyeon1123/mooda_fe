@@ -11,8 +11,8 @@ import {
   Check,
   Play,
 } from 'lucide-react';
-import { useSession } from 'next-auth/react';
 import { generateSystemPrompt } from '@/lib/prompt';
+import { getSession } from 'next-auth/react';
 
 interface MBTIType {
   energy: 'I' | 'E' | null;
@@ -122,7 +122,6 @@ const steps = [
 ];
 
 export default function CreateAIPage() {
-  const { data: session } = useSession();
   const [showIntro, setShowIntro] = useState(true);
   const [currentStep, setCurrentStep] = useState(0);
   const [mbtiTypes, setMbtiTypes] = useState<MBTIType>({
@@ -156,7 +155,9 @@ export default function CreateAIPage() {
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
     if (
       !mbtiTypes.energy ||
       !mbtiTypes.information ||
@@ -168,16 +169,17 @@ export default function CreateAIPage() {
       return;
     }
 
-    if (!session?.user?.id) {
-      alert('로그인이 필요합니다.');
-      return;
-    }
-
     try {
+      const session = await getSession();
+      if (!session?.user?.id) {
+        alert('로그인이 필요합니다.');
+        return;
+      }
+
       const mbti = `${mbtiTypes.energy}${mbtiTypes.information}${mbtiTypes.decisions}${mbtiTypes.lifestyle}`;
       const systemPrompt = generateSystemPrompt(mbti, mooName);
 
-      const response = await fetch('/api/custom-ai', {
+      const response = await fetch('http://localhost:8080/api/custom-ai', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -185,9 +187,14 @@ export default function CreateAIPage() {
         body: JSON.stringify({
           userId: session.user.id,
           name: mooName,
-          mbtiTypes,
+          description: `${mbti} 성향의 AI 친구`,
+          mbtiTypes: {
+            energy: mbtiTypes.energy,
+            information: mbtiTypes.information,
+            decisions: mbtiTypes.decisions,
+            lifestyle: mbtiTypes.lifestyle,
+          },
           systemPrompt,
-          description: `MBTI ${mbti} 성향을 가진 AI 친구`,
         }),
       });
 

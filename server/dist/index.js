@@ -16,123 +16,132 @@ const express_1 = __importDefault(require("express"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const cors_1 = __importDefault(require("cors"));
 const prisma_1 = __importDefault(require("./lib/prisma"));
-const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const scheduler_1 = require("./lib/scheduler");
 const emotion_service_1 = require("./lib/emotion-service");
 const generative_ai_1 = require("@google/generative-ai");
 const ai_personalities_1 = require("./lib/ai-personalities");
+const crypto_1 = __importDefault(require("crypto"));
+// 커스텀 AI 서비스 가져오기
+const custom_ai_service_1 = require("./lib/custom-ai-service");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const port = process.env.PORT || 8080;
 // Gemini AI 초기화
 const genAI = new generative_ai_1.GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 // AI 성격 관련 함수들
-function getPersonalityById(id) {
-    return ai_personalities_1.AI_PERSONALITIES.find((p) => p.id === id);
-}
 function getDefaultPersonality() {
     return ai_personalities_1.AI_PERSONALITIES[0];
 }
 // CORS 설정
 app.use((0, cors_1.default)({
-    origin: ['http://localhost:3000'],
+    origin: ['http://localhost:3000', 'https://mooda.vercel.app'],
     credentials: true,
 }));
 // JSON 파서 설정
 app.use(express_1.default.json());
-app.get('/', (req, res) => {
-    const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
-    res.send(`🎉 Mooda Server가 자동 배포로 성공적으로 업데이트되었습니다! ✨ TypeScript 빌드 시스템 완료! Updated: ${now}`);
+// Health check 엔드포인트
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
-app.post('/api/auth/login', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { kakaoId, email, userName } = req.body;
-    if (!kakaoId) {
-        res.status(400).json({ error: 'kakaoId is required' });
-        return;
-    }
+// 사용자 정보 조회 API
+app.get('/api/user', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const userUpserted = yield prisma_1.default.user.upsert({
-            where: { kakaoId: kakaoId.toString() },
-            update: { userName, email },
-            create: {
-                id: crypto.randomUUID(),
-                kakaoId: kakaoId.toString(),
-                email,
-                userName,
+        const userId = req.query.userId;
+        console.log('[GET /api/user] 요청:', { userId });
+        if (!userId) {
+            return res.status(400).json({ error: 'userId가 필요합니다.' });
+        }
+        const user = yield prisma_1.default.user.findUnique({
+            where: { id: userId },
+            include: {
+                customAIPersonalities: true,
             },
         });
-        const jwtSecret = process.env.JWT_SECRET;
-        const refreshTokenSecret = process.env.REFRESH_TOKEN_SECRET;
-        if (!jwtSecret || !refreshTokenSecret) {
-            throw new Error('JWT_SECRET or REFRESH_TOKEN_SECRET is not defined in the environment variables.');
+        if (!user) {
+            return res.status(404).json({ error: '사용자를 찾을 수 없습니다.' });
         }
-        const accessTokenPayload = { userId: userUpserted.id };
-        const accessToken = jsonwebtoken_1.default.sign(accessTokenPayload, jwtSecret, {
-            expiresIn: '1h',
-        });
-        const refreshTokenPayload = { userId: userUpserted.id };
-        const refreshToken = jsonwebtoken_1.default.sign(refreshTokenPayload, refreshTokenSecret, {
-            expiresIn: '7d',
-        });
-        // Store the refresh token in the database
-        yield prisma_1.default.user.update({
-            where: { id: userUpserted.id },
-            data: { refreshToken },
-        });
-        res.status(200).json({
-            userId: userUpserted.id,
-            accessToken,
-            refreshToken,
-        });
+        console.log('[GET /api/user] 응답:', user);
+        return res.json(user);
     }
     catch (error) {
-        console.error('Login/Register Error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('[GET /api/user] 오류:', error);
+        return res.status(500).json({ error: '서버 오류가 발생했습니다.' });
     }
 }));
-app.post('/api/auth/refresh', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { refreshToken } = req.body;
-    if (!refreshToken) {
-        res.status(401).json({ error: 'Refresh Token is required' });
-        return;
-    }
+// 사용자 정보 업데이트 API
+app.put('/api/user', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const refreshTokenSecret = process.env.REFRESH_TOKEN_SECRET;
-        if (!refreshTokenSecret) {
-            throw new Error('REFRESH_TOKEN_SECRET is not defined');
+        const { userId, selectedPersonalityId } = req.body;
+        console.log('[PUT /api/user] 요청:', { userId, selectedPersonalityId });
+        if (!userId) {
+            return res.status(400).json({ error: 'userId가 필요합니다.' });
         }
-        const decoded = jsonwebtoken_1.default.verify(refreshToken, refreshTokenSecret);
-        const user = yield prisma_1.default.user.findUnique({
-            where: {
-                id: decoded.userId,
+        const existingUser = yield prisma_1.default.user.findUnique({
+            where: { id: userId },
+            include: {
+                customAIPersonalities: true,
             },
         });
-        if (!user || user.refreshToken !== refreshToken) {
-            res.status(403).json({ error: 'Invalid Refresh Token' });
+        if (!existingUser) {
+            return res.status(404).json({ error: '사용자를 찾을 수 없습니다.' });
+        }
+        // selectedPersonalityId 유효성 검증
+        if (selectedPersonalityId) {
+            const isDefaultAI = ai_personalities_1.AI_PERSONALITIES.some((ai) => ai.id === selectedPersonalityId);
+            const isCustomAI = existingUser.customAIPersonalities.some((ai) => ai.id === selectedPersonalityId);
+            if (!isDefaultAI && !isCustomAI) {
+                return res.status(400).json({ error: '유효하지 않은 AI 성격입니다.' });
+            }
+        }
+        const updatedUser = yield prisma_1.default.user.update({
+            where: { id: userId },
+            data: { selectedPersonalityId },
+            include: {
+                customAIPersonalities: true,
+            },
+        });
+        console.log('[PUT /api/user] 응답:', updatedUser);
+        return res.json(updatedUser);
+    }
+    catch (error) {
+        console.error('[PUT /api/user] 오류:', error);
+        return res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+    }
+}));
+// 인증 미들웨어
+const authenticateUser = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b;
+    try {
+        const userId = (_b = (_a = req.body) === null || _a === void 0 ? void 0 : _a.data) === null || _b === void 0 ? void 0 : _b.userId;
+        if (!userId) {
+            res.status(401).json({ error: '인증이 필요합니다' });
             return;
         }
-        const jwtSecret = process.env.JWT_SECRET;
-        if (!jwtSecret) {
-            throw new Error('JWT_SECRET is not defined');
-        }
-        const accessTokenPayload = { userId: user.id };
-        const newAccessToken = jsonwebtoken_1.default.sign(accessTokenPayload, jwtSecret, {
-            expiresIn: '1h',
+        // 사용자 존재 여부 확인
+        const user = yield prisma_1.default.user.findUnique({
+            where: { id: userId },
         });
-        res.status(200).json({ accessToken: newAccessToken });
+        if (!user) {
+            // 사용자가 없으면 카카오 ID로 다시 확인
+            const kakaoUser = yield prisma_1.default.user.findFirst({
+                where: { kakaoId: userId },
+            });
+            if (!kakaoUser) {
+                res.status(401).json({ error: '유효하지 않은 사용자입니다' });
+                return;
+            }
+            // 요청의 userId를 실제 DB의 userId로 변경
+            req.body.data.userId = kakaoUser.id;
+        }
+        next();
     }
     catch (error) {
-        if (error instanceof jsonwebtoken_1.default.JsonWebTokenError) {
-            res.status(403).json({ error: 'Invalid Refresh Token' });
-        }
-        else {
-            console.error('Refresh token error:', error);
-            res.status(500).json({ error: 'Internal server error' });
-        }
+        console.error('Authentication error:', error);
+        res.status(500).json({ error: '인증 처리 중 오류가 발생했습니다' });
     }
-}));
-// 채팅 API
-app.post('/api/socket', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+});
+// 채팅 API에 인증 미들웨어 적용
+app.post('/api/socket', authenticateUser, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { action, data } = req.body;
     try {
         switch (action) {
@@ -172,7 +181,7 @@ function handleSendMessage(data, res) {
             // 사용자 메시지 저장
             const userMessage = yield prisma_1.default.conversation.create({
                 data: {
-                    id: crypto.randomUUID(),
+                    id: crypto_1.default.randomUUID(),
                     userId,
                     role: 'user',
                     content: message,
@@ -181,14 +190,53 @@ function handleSendMessage(data, res) {
             });
             console.log('✅ 사용자 메시지 저장 완료:', userMessage.id);
             // 2. AI 성격 설정 가져오기
-            const personality = personalityId
-                ? getPersonalityById(personalityId)
-                : getDefaultPersonality();
+            let personality;
+            if (personalityId) {
+                console.log('🔍 AI 성격 검색 시작:', personalityId);
+                // 먼저 기본 AI 목록에서 찾기
+                personality = ai_personalities_1.AI_PERSONALITIES.find((p) => p.id === personalityId);
+                // 기본 AI에 없다면 커스텀 AI에서 찾기
+                if (!personality) {
+                    console.log('🔍 기본 AI에서 찾지 못함, 커스텀 AI 확인 중...');
+                    try {
+                        const customAI = yield prisma_1.default.customAIPersonality.findFirst({
+                            where: {
+                                id: personalityId,
+                                userId: userId,
+                                isActive: true,
+                            },
+                        });
+                        if (customAI) {
+                            console.log('✅ 커스텀 AI 찾음:', customAI.name);
+                            const mbtiTypes = typeof customAI.mbtiTypes === 'string'
+                                ? JSON.parse(customAI.mbtiTypes)
+                                : customAI.mbtiTypes;
+                            personality = {
+                                id: customAI.id,
+                                name: customAI.name,
+                                systemPrompt: customAI.systemPrompt,
+                                iconType: `${mbtiTypes.energy}${mbtiTypes.information}${mbtiTypes.decisions}${mbtiTypes.lifestyle}`,
+                            };
+                        }
+                        else {
+                            console.log('⚠️ 커스텀 AI를 찾을 수 없음:', personalityId);
+                            res.status(400).json({ error: 'Invalid personality ID' });
+                            return;
+                        }
+                    }
+                    catch (error) {
+                        console.error('❌ 커스텀 AI 조회 오류:', error);
+                        res.status(500).json({ error: 'Failed to fetch custom AI' });
+                        return;
+                    }
+                }
+            }
             if (!personality) {
-                res.status(400).json({ error: 'Invalid personality ID' });
-                return;
+                console.log('⚠️ AI 성격을 찾을 수 없음, 기본값 사용');
+                personality = getDefaultPersonality();
             }
             console.log('🎭 성격 설정:', personality.name);
+            console.log('📝 시스템 프롬프트:', personality.systemPrompt);
             // 3. DB에서 최근 대화 기록 조회 (오늘 날짜만)
             const today = new Date();
             today.setHours(0, 0, 0, 0);
@@ -240,7 +288,7 @@ function handleSendMessage(data, res) {
             // AI 응답 저장
             const aiResponse = yield prisma_1.default.conversation.create({
                 data: {
-                    id: crypto.randomUUID(),
+                    id: crypto_1.default.randomUUID(),
                     userId,
                     role: 'ai',
                     content: finalContent,
@@ -354,11 +402,19 @@ function handleAnalyzeEmotion(data, res) {
         }
     });
 }
-app.listen(port, () => {
+app.listen(port, () => __awaiter(void 0, void 0, void 0, function* () {
     console.log(`[server]: Server is running at http://localhost:${port}`);
+    // 데이터베이스 연결 테스트
+    try {
+        const users = yield prisma_1.default.user.findMany();
+        console.log('📊 현재 등록된 사용자 수:', users.length);
+    }
+    catch (error) {
+        console.error('❌ 데이터베이스 연결 오류:', error);
+    }
     console.log('📅 Daily emotion analysis scheduled via GitHub Actions (12:00 PM everyday)');
     console.log('🔧 Manual trigger available at POST /api/run-daily-emotion-analysis');
-});
+}));
 // EmotionLog 조회 API
 app.get('/api/emotion-logs', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
@@ -508,7 +564,7 @@ app.post('/api/test-emotion-analysis', (req, res) => __awaiter(void 0, void 0, v
             // 새 로그 생성
             emotionLog = yield prisma_1.default.emotionLog.create({
                 data: {
-                    id: crypto.randomUUID(),
+                    id: crypto_1.default.randomUUID(),
                     userId,
                     date: startDate,
                     emotion: analysisResult.emotion,
@@ -549,50 +605,178 @@ app.post('/api/run-daily-emotion-analysis', (req, res) => __awaiter(void 0, void
         });
     }
 }));
-// Custom AI Personality API
-app.post('/api/custom-ai', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    try {
-        const { userId, name, mbtiTypes, systemPrompt, description } = req.body;
-        if (!userId || !name || !systemPrompt || !description) {
-            res.status(400).json({ error: 'Required fields are missing' });
-            return;
-        }
-        const customAI = yield prisma_1.default.customAIPersonality.create({
-            data: {
-                id: crypto.randomUUID(),
-                userId,
-                name,
-                mbtiTypes,
-                systemPrompt,
-                description,
-                updatedAt: new Date(),
-            },
-        });
-        res.status(200).json({ success: true, customAI });
-    }
-    catch (error) {
-        console.error('Error creating custom AI:', error);
-        res.status(500).json({ error: 'Failed to create custom AI personality' });
-    }
-}));
+// 커스텀 AI API 엔드포인트
 app.get('/api/custom-ai', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const userId = req.query.userId;
+        const { userId } = req.query;
         if (!userId) {
             res.status(400).json({ error: 'userId is required' });
             return;
         }
-        const customAIs = yield prisma_1.default.customAIPersonality.findMany({
-            where: { userId },
-            orderBy: { createdAt: 'desc' },
-        });
-        res.status(200).json(customAIs);
+        console.log('🔍 커스텀 AI 조회 요청:', userId);
+        const customAIs = yield (0, custom_ai_service_1.getCustomAIs)(userId);
+        res.json(customAIs);
     }
     catch (error) {
-        console.error('Error fetching custom AIs:', error);
-        res
-            .status(500)
-            .json({ error: 'Failed to fetch custom AI personalities' });
+        console.error('커스텀 AI 조회 오류:', error);
+        res.status(500).json({ error: '서버 오류가 발생했습니다' });
+    }
+}));
+app.post('/api/custom-ai', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { userId, name, description, mbtiTypes, systemPrompt } = req.body;
+        if (!userId || !name || !description || !mbtiTypes || !systemPrompt) {
+            res.status(400).json({ error: '필수 필드가 누락되었습니다' });
+            return;
+        }
+        const customAI = yield (0, custom_ai_service_1.createCustomAI)({
+            userId,
+            name,
+            description,
+            mbtiTypes,
+            systemPrompt,
+        });
+        res.json(customAI);
+    }
+    catch (error) {
+        console.error('커스텀 AI 생성 오류:', error);
+        res.status(500).json({ error: '서버 오류가 발생했습니다' });
+    }
+}));
+// 사용자 정보 업데이트 API
+app.put('/api/user', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { userId, selectedPersonalityId } = req.body;
+        console.log('사용자 정보 업데이트 요청:', {
+            userId,
+            selectedPersonalityId,
+        });
+        if (!userId) {
+            res.status(400).json({ error: 'userId가 필요합니다.' });
+            return;
+        }
+        // 사용자 존재 여부 확인
+        const existingUser = yield prisma_1.default.user.findUnique({
+            where: { id: userId },
+        });
+        if (!existingUser) {
+            res.status(404).json({ error: '사용자를 찾을 수 없습니다.' });
+            return;
+        }
+        // selectedPersonalityId 유효성 검증
+        if (selectedPersonalityId) {
+            // 기본 AI 확인
+            const isDefaultAI = ai_personalities_1.AI_PERSONALITIES.some((ai) => ai.id === selectedPersonalityId);
+            if (!isDefaultAI) {
+                // 커스텀 AI 확인
+                const customAI = yield prisma_1.default.customAIPersonality.findFirst({
+                    where: {
+                        id: selectedPersonalityId,
+                        userId: userId,
+                        isActive: true,
+                    },
+                });
+                if (!customAI) {
+                    res.status(400).json({ error: '유효하지 않은 AI 성격입니다.' });
+                    return;
+                }
+            }
+        }
+        const updatedUser = yield prisma_1.default.user.update({
+            where: { id: userId },
+            data: { selectedPersonalityId },
+            select: {
+                id: true,
+                userName: true,
+                email: true,
+                image: true,
+                selectedPersonalityId: true,
+            },
+        });
+        console.log('사용자 정보 업데이트 완료:', updatedUser);
+        res.json(updatedUser);
+    }
+    catch (error) {
+        console.error('사용자 정보 업데이트 오류:', error);
+        res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+    }
+}));
+// 사용자 정보 조회 API
+app.get('/api/user', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const userId = req.query.userId;
+        console.log('사용자 정보 조회 요청:', userId);
+        if (!userId) {
+            res.status(400).json({ error: 'userId가 필요합니다.' });
+            return;
+        }
+        const user = yield prisma_1.default.user.findUnique({
+            where: { id: userId },
+            select: {
+                id: true,
+                userName: true,
+                email: true,
+                image: true,
+                selectedPersonalityId: true,
+            },
+        });
+        if (!user) {
+            res.status(404).json({ error: '사용자를 찾을 수 없습니다.' });
+            return;
+        }
+        console.log('사용자 정보 조회 완료:', user);
+        res.json(user);
+    }
+    catch (error) {
+        console.error('사용자 정보 조회 오류:', error);
+        res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+    }
+}));
+// 로그인 API 엔드포인트
+app.post('/api/auth/login', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { kakaoId, email, userName, image } = req.body;
+        if (!kakaoId) {
+            res.status(400).json({ error: 'kakaoId is required' });
+            return;
+        }
+        // 기존 사용자 찾기 또는 새로운 사용자 생성
+        let user = yield prisma_1.default.user.findFirst({
+            where: { kakaoId: kakaoId },
+        });
+        if (!user) {
+            // 새로운 사용자 생성
+            user = yield prisma_1.default.user.create({
+                data: {
+                    id: crypto_1.default.randomUUID(),
+                    kakaoId,
+                    email,
+                    userName,
+                    image,
+                },
+            });
+        }
+        else {
+            // 기존 사용자 정보 업데이트
+            user = yield prisma_1.default.user.update({
+                where: { id: user.id },
+                data: {
+                    email,
+                    userName,
+                    image,
+                },
+            });
+        }
+        res.json({
+            userId: user.id,
+            name: user.userName,
+            email: user.email,
+            image: user.image,
+        });
+    }
+    catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ error: '로그인 처리 중 오류가 발생했습니다' });
     }
 }));
 // 이제 GitHub Actions로 매일 12시에 자동 실행됩니다.

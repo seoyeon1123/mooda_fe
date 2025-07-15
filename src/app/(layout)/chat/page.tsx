@@ -1,18 +1,23 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import {
   getPersonalityById,
   getPersonalityByIdAsync,
   type AIPersonality,
-} from '@/lib/ai-personalities';
-import { loadConversationHistory, sendChatMessage } from '@/lib/chat-service';
-import type { Message } from '@/lib/chat-types';
-import ChatHeader from '@/app/(layout)/chat/components/ChatHeader';
-import MessageList from '@/app/(layout)/chat/components/MessageList';
-import ChatInput from '@/app/(layout)/chat/components/ChatInput';
-import useUserStore from '@/store/userStore';
+} from "@/lib/ai-personalities";
+import {
+  loadConversationHistory,
+  sendChatMessage,
+  loadConversationHistoryByDate,
+} from "@/lib/chat-service";
+import type { Message } from "@/lib/chat-types";
+import ChatHeader from "@/app/(layout)/chat/components/ChatHeader";
+import MessageList from "@/app/(layout)/chat/components/MessageList";
+import ChatInput from "@/app/(layout)/chat/components/ChatInput";
+import CalendarModal from "@/app/(layout)/chat/components/CalendarModal";
+import useUserStore from "@/store/userStore";
 
 export default function ChatTab() {
   const { data: session, status } = useSession();
@@ -26,12 +31,14 @@ export default function ChatTab() {
   );
 
   const [messages, setMessages] = useState<Message[]>([]);
-  const [inputMessage, setInputMessage] = useState('');
+  const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [lastMidnight, setLastMidnight] = useState<Date>(() => new Date());
   const [currentPersonality, setCurrentPersonality] = useState<
     AIPersonality | undefined
   >(getPersonalityById(selectedPersonalityId));
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [showCalendar, setShowCalendar] = useState(false);
 
   // 성격 로드 로직
   useEffect(() => {
@@ -42,13 +49,66 @@ export default function ChatTab() {
     loadPersonality();
   }, [selectedPersonalityId]);
 
-  // 채팅 초기화 로직
+  // 날짜별 대화 로딩 함수 (임시로 로그인 체크 제거)
+  const handleDateSelect = async (date: Date) => {
+    if (!currentPersonality) return;
+
+    setIsLoading(true);
+    setSelectedDate(date);
+
+    try {
+      // 임시로 모의 데이터 사용
+      const conversations: Message[] = [
+        {
+          id: "1",
+          role: "user",
+          content: "안녕하세요!",
+          createdAt: date,
+        },
+        {
+          id: "2",
+          role: "ai",
+          content: "안녕! 오늘 기분은 어때?",
+          createdAt: date,
+        },
+      ];
+
+      if (conversations.length === 0) {
+        // 해당 날짜에 대화가 없는 경우
+        const noMessageMessage: Message = {
+          id: `no-message-${Date.now()}`,
+          role: "system",
+          content: `--- ${date.toLocaleDateString()}에는 대화 기록이 없습니다 ---`,
+          createdAt: date,
+        };
+        setMessages([noMessageMessage]);
+      } else {
+        // 날짜 구분선 추가
+        const dateMessage: Message = {
+          id: `date-${Date.now()}`,
+          role: "system",
+          content: `--- ${date.toLocaleDateString()} ---`,
+          createdAt: date,
+        };
+        setMessages([dateMessage, ...conversations]);
+      }
+    } catch (error) {
+      console.error("날짜별 대화 로딩 실패:", error);
+      const errorMessage: Message = {
+        id: `error-${Date.now()}`,
+        role: "system",
+        content: "대화 기록을 불러오는데 실패했습니다.",
+        createdAt: new Date(),
+      };
+      setMessages([errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 채팅 초기화 로직 (임시로 로그인 체크 제거)
   useEffect(() => {
-    if (
-      status !== 'authenticated' ||
-      !session?.user?.id ||
-      !currentPersonality
-    ) {
+    if (!currentPersonality) {
       return;
     }
 
@@ -58,15 +118,13 @@ export default function ChatTab() {
         // 스토어에서 직접 최신 상태를 조회하여 의존성 문제를 회피합니다.
         const personalityChanged = useUserStore.getState().personalityChanged;
 
-        const conversations = await loadConversationHistory(
-          session.user.id,
-          selectedPersonalityId
-        );
+        // 임시로 빈 배열 사용 (로그인 없이 화면만 확인)
+        const conversations: Message[] = [];
 
         if (personalityChanged && currentPersonality) {
           const systemMessage: Message = {
             id: `system_${Date.now()}`,
-            role: 'system',
+            role: "system",
             content: `--- 이제부터 ${currentPersonality.name}와 대화를 시작합니다 ---`,
             createdAt: new Date(),
           };
@@ -75,7 +133,7 @@ export default function ChatTab() {
         } else if (conversations.length === 0 && currentPersonality) {
           const welcomeMessage: Message = {
             id: String(Date.now()),
-            role: 'ai',
+            role: "ai",
             content: `안녕! 나는 ${currentPersonality.name}야! ${currentPersonality.shortDescription}`,
             createdAt: new Date(),
           };
@@ -83,8 +141,11 @@ export default function ChatTab() {
         } else {
           setMessages(conversations);
         }
+
+        // 날짜 선택 상태 초기화
+        setSelectedDate(null);
       } catch (error) {
-        console.error('Failed to initialize chat:', error);
+        console.error("Failed to initialize chat:", error);
       } finally {
         setIsLoading(false);
       }
@@ -100,25 +161,31 @@ export default function ChatTab() {
 
   const handleSendMessage = async (messageContent: string) => {
     if (!messageContent.trim() || isLoading) return;
-    if (!session?.user?.id || !currentPersonality) return;
+    if (!currentPersonality) return;
 
     const optimisticUserMessage: Message = {
       id: String(Date.now()),
-      role: 'user',
+      role: "user",
       content: messageContent,
       createdAt: new Date(),
     };
 
     setMessages((prev) => [...prev, optimisticUserMessage]);
-    setInputMessage('');
+    setInputMessage("");
     setIsLoading(true);
 
     try {
-      const response = await sendChatMessage(
-        messageContent,
-        session.user.id,
-        currentPersonality.id
-      );
+      // 임시로 모의 응답 사용
+      const response = {
+        success: true,
+        userMessage: optimisticUserMessage,
+        aiResponse: {
+          id: String(Date.now() + 1),
+          role: "ai" as const,
+          content: "안녕! 메시지를 받았어요!",
+          createdAt: new Date(),
+        },
+      };
 
       if (response && response.success) {
         setMessages((prev) => {
@@ -131,13 +198,13 @@ export default function ChatTab() {
         setMessages((prev) =>
           prev.filter((msg) => msg.id !== optimisticUserMessage.id)
         );
-        console.error('Message send failed, response:', response);
+        console.error("Message send failed, response:", response);
       }
     } catch (error) {
       setMessages((prev) =>
         prev.filter((msg) => msg.id !== optimisticUserMessage.id)
       );
-      console.error('An error occurred while sending the message:', error);
+      console.error("An error occurred while sending the message:", error);
     } finally {
       setIsLoading(false);
     }
@@ -155,7 +222,7 @@ export default function ChatTab() {
     if (lastMidnight.getTime() < startOfToday.getTime()) {
       const midnightMessage: Message = {
         id: `system_${Date.now()}`,
-        role: 'system',
+        role: "system",
         content: `--- ${now.toLocaleDateString()} ---`,
         createdAt: now,
       };
@@ -173,7 +240,7 @@ export default function ChatTab() {
       if (lastMidnight.getTime() < newStartOfToday.getTime()) {
         const midnightMessage: Message = {
           id: `system_${Date.now()}`,
-          role: 'system',
+          role: "system",
           content: `--- ${newNow.toLocaleDateString()} ---`,
           createdAt: newNow,
         };
@@ -187,13 +254,28 @@ export default function ChatTab() {
 
   return (
     <div className="flex flex-col h-full bg-stone-50">
-      <ChatHeader currentPersonality={currentPersonality || null} />
+      <ChatHeader
+        currentPersonality={currentPersonality || null}
+        onDateSelect={handleDateSelect}
+        userId="demo-user"
+        showCalendar={showCalendar}
+        setShowCalendar={setShowCalendar}
+      />
       <MessageList messages={messages} isLoading={isLoading} />
       <ChatInput
         inputMessage={inputMessage}
         setInputMessage={setInputMessage}
         sendMessage={handleSendMessage}
         isLoading={isLoading}
+      />
+
+      {/* 달력 모달 */}
+      <CalendarModal
+        show={showCalendar}
+        onClose={() => setShowCalendar(false)}
+        onDateSelect={handleDateSelect}
+        userId="demo-user"
+        currentPersonality={currentPersonality || null}
       />
     </div>
   );

@@ -1,21 +1,42 @@
-import express, { Express, Request, Response, NextFunction } from 'express';
-import dotenv from 'dotenv';
-import cors from 'cors';
-import cron from 'node-cron';
-import prisma from './lib/prisma';
-import { scheduleDailyEmotionSummary } from './lib/scheduler';
+import express, { Express, Request, Response, NextFunction } from "express";
+import dotenv from "dotenv";
+import cors from "cors";
+import cron from "node-cron";
+import prisma from "./lib/prisma";
+import { scheduleDailyEmotionSummary } from "./lib/scheduler";
 import {
   simpleAnalyzeConversation,
   emotionToSvg,
   emotionToPercentage,
-} from './lib/emotion-service';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { Conversation } from '@prisma/client';
-import { AI_PERSONALITIES, AIPersonality } from './lib/ai-personalities';
-import crypto from 'crypto';
+} from "./lib/emotion-service";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+// 타입 정의
+type Conversation = {
+  id: string;
+  userId: string;
+  content: string;
+  createdAt: Date;
+  role: string;
+  personalityId: string | null;
+};
+
+type CustomAIPersonality = {
+  id: string;
+  userId: string;
+  name: string;
+  mbtiTypes: string;
+  systemPrompt: string;
+  description: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
+import { AI_PERSONALITIES, AIPersonality } from "./lib/ai-personalities";
+import crypto from "crypto";
 
 // 커스텀 AI 서비스 가져오기
-import { getCustomAIs, createCustomAI } from './lib/custom-ai-service';
+import { getCustomAIs, createCustomAI } from "./lib/custom-ai-service";
 
 dotenv.config();
 
@@ -23,7 +44,7 @@ const app: Express = express();
 const port = process.env.PORT || 8080;
 
 // Gemini AI 초기화
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 // 타입 정의
 interface SendMessageData {
@@ -40,6 +61,17 @@ interface GetHistoryData {
   userId: string;
 }
 
+interface GetHistoryByDateData {
+  userId: string;
+  personalityId: string;
+  date: string;
+}
+
+interface GetConversationDatesData {
+  userId: string;
+  personalityId: string;
+}
+
 // AI 성격 관련 함수들
 function getDefaultPersonality() {
   return AI_PERSONALITIES[0];
@@ -48,7 +80,7 @@ function getDefaultPersonality() {
 // CORS 설정
 app.use(
   cors({
-    origin: ['http://localhost:3000', 'https://mooda.vercel.app'],
+    origin: ["http://localhost:3000", "https://mooda.vercel.app"],
     credentials: true,
   })
 );
@@ -66,7 +98,7 @@ const authenticateUser = async (
     const userId = req.body?.data?.userId;
 
     if (!userId) {
-      res.status(401).json({ error: '인증이 필요합니다' });
+      res.status(401).json({ error: "인증이 필요합니다" });
       return;
     }
 
@@ -82,7 +114,7 @@ const authenticateUser = async (
       });
 
       if (!kakaoUser) {
-        res.status(401).json({ error: '유효하지 않은 사용자입니다' });
+        res.status(401).json({ error: "유효하지 않은 사용자입니다" });
         return;
       }
 
@@ -92,47 +124,53 @@ const authenticateUser = async (
 
     next();
   } catch (error) {
-    console.error('Authentication error:', error);
-    res.status(500).json({ error: '인증 처리 중 오류가 발생했습니다' });
+    console.error("Authentication error:", error);
+    res.status(500).json({ error: "인증 처리 중 오류가 발생했습니다" });
   }
 };
 
 // 채팅 API에 인증 미들웨어 적용
 app.post(
-  '/api/socket',
+  "/api/socket",
   authenticateUser,
   async (req: Request, res: Response): Promise<void> => {
     const { action, data } = req.body;
 
     try {
       switch (action) {
-        case 'send-message':
+        case "send-message":
           await handleSendMessage(data as SendMessageData, res);
           break;
-        case 'analyze-emotion':
+        case "analyze-emotion":
           await handleAnalyzeEmotion(data as AnalyzeEmotionData, res);
           break;
-        case 'get-conversation-history':
+        case "get-conversation-history":
           await getConversationHistory(data as GetHistoryData, res);
           break;
+        case "get-conversation-history-by-date":
+          await getConversationHistoryByDate(data as GetHistoryByDateData, res);
+          break;
+        case "get-conversation-dates":
+          await getConversationDates(data as GetConversationDatesData, res);
+          break;
         default:
-          res.status(400).json({ error: 'Unknown action' });
+          res.status(400).json({ error: "Unknown action" });
       }
     } catch (error) {
-      console.error('API Error:', error);
-      res.status(500).json({ error: 'An internal server error occurred' });
+      console.error("API Error:", error);
+      res.status(500).json({ error: "An internal server error occurred" });
     }
   }
 );
 
 // 사용자 정보 조회 API
-app.get('/api/user', async (req: Request, res: Response): Promise<void> => {
+app.get("/api/user", async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.query.userId as string;
-    console.log('[GET /api/user] 요청:', { userId });
+    console.log("[GET /api/user] 요청:", { userId });
 
     if (!userId) {
-      res.status(400).json({ error: 'userId가 필요합니다.' });
+      res.status(400).json({ error: "userId가 필요합니다." });
       return;
     }
 
@@ -144,26 +182,26 @@ app.get('/api/user', async (req: Request, res: Response): Promise<void> => {
     });
 
     if (!user) {
-      res.status(404).json({ error: '사용자를 찾을 수 없습니다.' });
+      res.status(404).json({ error: "사용자를 찾을 수 없습니다." });
       return;
     }
 
-    console.log('[GET /api/user] 응답:', user);
+    console.log("[GET /api/user] 응답:", user);
     res.json(user);
   } catch (error) {
-    console.error('[GET /api/user] 오류:', error);
-    res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+    console.error("[GET /api/user] 오류:", error);
+    res.status(500).json({ error: "서버 오류가 발생했습니다." });
   }
 });
 
 // 사용자 정보 업데이트 API
-app.put('/api/user', async (req: Request, res: Response): Promise<void> => {
+app.put("/api/user", async (req: Request, res: Response): Promise<void> => {
   try {
     const { userId, selectedPersonalityId } = req.body;
-    console.log('[PUT /api/user] 요청:', { userId, selectedPersonalityId });
+    console.log("[PUT /api/user] 요청:", { userId, selectedPersonalityId });
 
     if (!userId) {
-      res.status(400).json({ error: 'userId가 필요합니다.' });
+      res.status(400).json({ error: "userId가 필요합니다." });
       return;
     }
 
@@ -175,7 +213,7 @@ app.put('/api/user', async (req: Request, res: Response): Promise<void> => {
     });
 
     if (!existingUser) {
-      res.status(404).json({ error: '사용자를 찾을 수 없습니다.' });
+      res.status(404).json({ error: "사용자를 찾을 수 없습니다." });
       return;
     }
 
@@ -184,11 +222,11 @@ app.put('/api/user', async (req: Request, res: Response): Promise<void> => {
         (ai) => ai.id === selectedPersonalityId
       );
       const isCustomAI = existingUser.customAIPersonalities.some(
-        (ai) => ai.id === selectedPersonalityId
+        (ai: CustomAIPersonality) => ai.id === selectedPersonalityId
       );
 
       if (!isDefaultAI && !isCustomAI) {
-        res.status(400).json({ error: '유효하지 않은 AI 성격입니다.' });
+        res.status(400).json({ error: "유효하지 않은 AI 성격입니다." });
         return;
       }
     }
@@ -201,11 +239,11 @@ app.put('/api/user', async (req: Request, res: Response): Promise<void> => {
       },
     });
 
-    console.log('[PUT /api/user] 응답:', updatedUser);
+    console.log("[PUT /api/user] 응답:", updatedUser);
     res.json(updatedUser);
   } catch (error) {
-    console.error('[PUT /api/user] 오류:', error);
-    res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+    console.error("[PUT /api/user] 오류:", error);
+    res.status(500).json({ error: "서버 오류가 발생했습니다." });
   }
 });
 
@@ -214,33 +252,33 @@ async function handleSendMessage(data: SendMessageData, res: Response) {
   const { message, userId, personalityId } = data;
 
   if (!message || !userId) {
-    res.status(400).json({ error: 'Message and userId are required' });
+    res.status(400).json({ error: "Message and userId are required" });
     return;
   }
 
-  console.log('🚀 handleSendMessage 시작:', { message, userId, personalityId });
-  console.log('🔑 GEMINI_API_KEY 존재 여부:', !!process.env.GEMINI_API_KEY);
-  console.log('🔑 API 키 길이:', process.env.GEMINI_API_KEY?.length);
+  console.log("🚀 handleSendMessage 시작:", { message, userId, personalityId });
+  console.log("🔑 GEMINI_API_KEY 존재 여부:", !!process.env.GEMINI_API_KEY);
+  console.log("🔑 API 키 길이:", process.env.GEMINI_API_KEY?.length);
 
   try {
     // 1. 사용자 메시지를 DB에 저장
-    console.log('💾 사용자 메시지 DB 저장 시작...');
+    console.log("💾 사용자 메시지 DB 저장 시작...");
     // 사용자 메시지 저장
     const userMessage = await prisma.conversation.create({
       data: {
         id: crypto.randomUUID(),
         userId,
-        role: 'user',
+        role: "user",
         content: message,
         personalityId,
       },
     });
-    console.log('✅ 사용자 메시지 저장 완료:', userMessage.id);
+    console.log("✅ 사용자 메시지 저장 완료:", userMessage.id);
 
     // 2. AI 성격 설정 가져오기
     let personality;
     if (personalityId) {
-      console.log('🔍 AI 성격 검색 시작:', personalityId);
+      console.log("🔍 AI 성격 검색 시작:", personalityId);
       // 먼저 기본 AI 목록에서 찾기
       personality = AI_PERSONALITIES.find(
         (p: AIPersonality) => p.id === personalityId
@@ -248,7 +286,7 @@ async function handleSendMessage(data: SendMessageData, res: Response) {
 
       // 기본 AI에 없다면 커스텀 AI에서 찾기
       if (!personality) {
-        console.log('🔍 기본 AI에서 찾지 못함, 커스텀 AI 확인 중...');
+        console.log("🔍 기본 AI에서 찾지 못함, 커스텀 AI 확인 중...");
         try {
           const customAI = await prisma.customAIPersonality.findFirst({
             where: {
@@ -259,9 +297,9 @@ async function handleSendMessage(data: SendMessageData, res: Response) {
           });
 
           if (customAI) {
-            console.log('✅ 커스텀 AI 찾음:', customAI.name);
+            console.log("✅ 커스텀 AI 찾음:", customAI.name);
             const mbtiTypes =
-              typeof customAI.mbtiTypes === 'string'
+              typeof customAI.mbtiTypes === "string"
                 ? JSON.parse(customAI.mbtiTypes)
                 : customAI.mbtiTypes;
 
@@ -272,32 +310,32 @@ async function handleSendMessage(data: SendMessageData, res: Response) {
               iconType: `${mbtiTypes.energy}${mbtiTypes.information}${mbtiTypes.decisions}${mbtiTypes.lifestyle}`,
             };
           } else {
-            console.log('⚠️ 커스텀 AI를 찾을 수 없음:', personalityId);
-            res.status(400).json({ error: 'Invalid personality ID' });
+            console.log("⚠️ 커스텀 AI를 찾을 수 없음:", personalityId);
+            res.status(400).json({ error: "Invalid personality ID" });
             return;
           }
         } catch (error) {
-          console.error('❌ 커스텀 AI 조회 오류:', error);
-          res.status(500).json({ error: 'Failed to fetch custom AI' });
+          console.error("❌ 커스텀 AI 조회 오류:", error);
+          res.status(500).json({ error: "Failed to fetch custom AI" });
           return;
         }
       }
     }
 
     if (!personality) {
-      console.log('⚠️ AI 성격을 찾을 수 없음, 기본값 사용');
+      console.log("⚠️ AI 성격을 찾을 수 없음, 기본값 사용");
       personality = getDefaultPersonality();
     }
 
-    console.log('🎭 성격 설정:', personality.name);
-    console.log('📝 시스템 프롬프트:', personality.systemPrompt);
+    console.log("🎭 성격 설정:", personality.name);
+    console.log("📝 시스템 프롬프트:", personality.systemPrompt);
 
     // 3. DB에서 최근 대화 기록 조회 (오늘 날짜만)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    console.log('🤖 Gemini AI 모델 초기화 중...');
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    console.log("🤖 Gemini AI 모델 초기화 중...");
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const conversationHistory = await prisma.conversation.findMany({
       where: {
@@ -305,20 +343,20 @@ async function handleSendMessage(data: SendMessageData, res: Response) {
         personalityId,
         createdAt: { gte: today },
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: "asc" },
       take: 20,
     });
-    console.log('📚 대화 기록 개수:', conversationHistory.length);
+    console.log("📚 대화 기록 개수:", conversationHistory.length);
 
     // 대화 기록을 Gemini 형식으로 변환
     const chatHistory = conversationHistory.map((msg: Conversation) => ({
-      role: msg.role === 'user' ? 'user' : 'model',
+      role: msg.role === "user" ? "user" : "model",
       parts: [{ text: msg.content }],
     }));
 
     // Gemini API 요구사항: 첫 번째 메시지는 반드시 'user' 역할이어야 함
     // 시스템 프롬프트를 사용자 메시지에 포함시킴
-    console.log('💬 채팅 세션 시작...');
+    console.log("💬 채팅 세션 시작...");
     const chat = model.startChat({
       history: chatHistory,
       generationConfig: {
@@ -331,43 +369,43 @@ async function handleSendMessage(data: SendMessageData, res: Response) {
 
     // 시스템 프롬프트와 사용자 메시지를 결합
     const characterPrompt = `${personality.systemPrompt}\n\n사용자: ${message}`;
-    console.log('📤 AI에게 메시지 전송 중...');
+    console.log("📤 AI에게 메시지 전송 중...");
 
     const result = await chat.sendMessage(characterPrompt);
     const response = result.response;
     const aiContent = response.text();
-    console.log('📥 AI 응답 받음:', aiContent.substring(0, 50) + '...');
+    console.log("📥 AI 응답 받음:", aiContent.substring(0, 50) + "...");
 
     // 5. AI 응답 길이 제한
     let finalContent = aiContent;
     if (finalContent.length > 150) {
       const slice = finalContent.slice(0, 150);
       const lastPunct = Math.max(
-        slice.lastIndexOf('.'),
-        slice.lastIndexOf('!'),
-        slice.lastIndexOf('?'),
-        slice.lastIndexOf('…'),
-        slice.lastIndexOf('\n')
+        slice.lastIndexOf("."),
+        slice.lastIndexOf("!"),
+        slice.lastIndexOf("?"),
+        slice.lastIndexOf("…"),
+        slice.lastIndexOf("\n")
       );
       finalContent = lastPunct > 50 ? slice.slice(0, lastPunct + 1) : slice;
     }
 
     // 6. AI 응답을 DB에 저장
-    console.log('💾 AI 응답 DB 저장 중...');
+    console.log("💾 AI 응답 DB 저장 중...");
     // AI 응답 저장
     const aiResponse = await prisma.conversation.create({
       data: {
         id: crypto.randomUUID(),
         userId,
-        role: 'ai',
+        role: "ai",
         content: finalContent,
         personalityId,
       },
     });
-    console.log('✅ AI 응답 저장 완료:', aiResponse.id);
+    console.log("✅ AI 응답 저장 완료:", aiResponse.id);
 
     // 7. 클라이언트에 결과 반환
-    console.log('📤 클라이언트에 응답 전송');
+    console.log("📤 클라이언트에 응답 전송");
     res.json({
       userMessage,
       aiResponse,
@@ -379,17 +417,17 @@ async function handleSendMessage(data: SendMessageData, res: Response) {
       },
     });
   } catch (error) {
-    console.error('❌ Send message error 상세:', error);
-    console.error('❌ Error type:', typeof error);
+    console.error("❌ Send message error 상세:", error);
+    console.error("❌ Error type:", typeof error);
     console.error(
-      '❌ Error message:',
-      error instanceof Error ? error.message : 'Unknown error'
+      "❌ Error message:",
+      error instanceof Error ? error.message : "Unknown error"
     );
     console.error(
-      '❌ Error stack:',
-      error instanceof Error ? error.stack : 'No stack'
+      "❌ Error stack:",
+      error instanceof Error ? error.stack : "No stack"
     );
-    res.status(500).json({ error: 'Failed to generate AI response' });
+    res.status(500).json({ error: "Failed to generate AI response" });
   }
 }
 
@@ -398,7 +436,7 @@ async function getConversationHistory(data: GetHistoryData, res: Response) {
   const { userId } = data;
 
   if (!userId) {
-    res.status(400).json({ error: 'userId is required' });
+    res.status(400).json({ error: "userId is required" });
     return;
   }
 
@@ -411,12 +449,93 @@ async function getConversationHistory(data: GetHistoryData, res: Response) {
         userId,
         createdAt: { gte: today },
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: "asc" },
     });
     res.json({ conversations, success: true });
   } catch (error) {
-    console.error('Get conversation history error:', error);
-    res.status(500).json({ error: 'Failed to retrieve conversation history' });
+    console.error("Get conversation history error:", error);
+    res.status(500).json({ error: "Failed to retrieve conversation history" });
+  }
+}
+
+// 날짜별 대화 기록 조회 함수
+async function getConversationHistoryByDate(
+  data: GetHistoryByDateData,
+  res: Response
+) {
+  const { userId, personalityId, date } = data;
+
+  if (!userId || !personalityId || !date) {
+    res
+      .status(400)
+      .json({ error: "userId, personalityId, and date are required" });
+    return;
+  }
+
+  try {
+    const targetDate = new Date(date);
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const conversations = await prisma.conversation.findMany({
+      where: {
+        userId,
+        personalityId,
+        createdAt: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    res.json({ conversations, success: true });
+  } catch (error) {
+    console.error("Get conversation history by date error:", error);
+    res
+      .status(500)
+      .json({ error: "Failed to retrieve conversation history by date" });
+  }
+}
+
+// 대화가 있는 날짜 목록 조회 함수
+async function getConversationDates(
+  data: GetConversationDatesData,
+  res: Response
+) {
+  const { userId, personalityId } = data;
+
+  if (!userId || !personalityId) {
+    res.status(400).json({ error: "userId and personalityId are required" });
+    return;
+  }
+
+  try {
+    const conversations = await prisma.conversation.findMany({
+      where: {
+        userId,
+        personalityId,
+      },
+      select: {
+        createdAt: true,
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    // 날짜별로 그룹화하여 중복 제거
+    const dateSet = new Set<string>();
+    conversations.forEach((conv: { createdAt: Date }) => {
+      const dateString = conv.createdAt.toISOString().split("T")[0];
+      dateSet.add(dateString);
+    });
+
+    const dates = Array.from(dateSet).sort();
+    res.json({ dates, success: true });
+  } catch (error) {
+    console.error("Get conversation dates error:", error);
+    res.status(500).json({ error: "Failed to retrieve conversation dates" });
   }
 }
 
@@ -425,7 +544,7 @@ async function handleAnalyzeEmotion(data: AnalyzeEmotionData, res: Response) {
   const { userId } = data;
 
   if (!userId) {
-    res.status(400).json({ error: 'userId is required' });
+    res.status(400).json({ error: "userId is required" });
     return;
   }
 
@@ -441,15 +560,15 @@ async function handleAnalyzeEmotion(data: AnalyzeEmotionData, res: Response) {
     });
 
     if (conversations.length === 0) {
-      res.status(400).json({ error: 'No conversations to analyze' });
+      res.status(400).json({ error: "No conversations to analyze" });
       return;
     }
 
     const conversationText = conversations
-      .map((msg) => `${msg.role}: ${msg.content}`)
-      .join('\n');
+      .map((msg: Conversation) => `${msg.role}: ${msg.content}`)
+      .join("\n");
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     const prompt = `Analyze the user's emotional state from the following conversation and classify it into one of these 6 categories: VeryHappy, Happy, Neutral, Sad, VerySad, Angry.
     
     Respond in the following JSON format:
@@ -468,17 +587,17 @@ async function handleAnalyzeEmotion(data: AnalyzeEmotionData, res: Response) {
     const response = result.response;
     const jsonString = response
       .text()
-      .replace(/```json|```/g, '')
+      .replace(/```json|```/g, "")
       .trim();
     const analysisResult = JSON.parse(jsonString);
 
     res.json({ ...analysisResult, success: true });
   } catch (error) {
-    console.error('Analyze emotion error:', error);
+    console.error("Analyze emotion error:", error);
     if (error instanceof SyntaxError) {
-      res.status(500).json({ error: 'Failed to parse AI analysis response' });
+      res.status(500).json({ error: "Failed to parse AI analysis response" });
     } else {
-      res.status(500).json({ error: 'Failed to analyze emotion' });
+      res.status(500).json({ error: "Failed to analyze emotion" });
     }
   }
 }
@@ -489,41 +608,41 @@ app.listen(port, async () => {
   // 데이터베이스 연결 테스트
   try {
     const users = await prisma.user.findMany();
-    console.log('📊 현재 등록된 사용자 수:', users.length);
+    console.log("📊 현재 등록된 사용자 수:", users.length);
   } catch (error) {
-    console.error('❌ 데이터베이스 연결 오류:', error);
+    console.error("❌ 데이터베이스 연결 오류:", error);
   }
 
   // 매일 자정(00:00)에 일일 감정 분석 실행
   cron.schedule(
-    '0 0 * * *',
+    "0 0 * * *",
     async () => {
-      console.log('🕛 자정 - 일일 감정 분석 시작...');
+      console.log("🕛 자정 - 일일 감정 분석 시작...");
       try {
         await scheduleDailyEmotionSummary();
-        console.log('✅ 일일 감정 분석 완료');
+        console.log("✅ 일일 감정 분석 완료");
       } catch (error) {
-        console.error('❌ 일일 감정 분석 실패:', error);
+        console.error("❌ 일일 감정 분석 실패:", error);
       }
     },
     {
-      timezone: 'Asia/Seoul',
+      timezone: "Asia/Seoul",
     }
   );
 
-  console.log('📅 일일 감정 분석 스케줄러 설정 완료 (매일 자정 실행)');
-  console.log('🔧 수동 실행 가능: POST /api/run-daily-emotion-analysis');
+  console.log("📅 일일 감정 분석 스케줄러 설정 완료 (매일 자정 실행)");
+  console.log("🔧 수동 실행 가능: POST /api/run-daily-emotion-analysis");
 });
 
 // EmotionLog 조회 API
 app.get(
-  '/api/emotion-logs',
+  "/api/emotion-logs",
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { userId, year, month } = req.query;
 
       if (!userId) {
-        res.status(400).json({ error: 'userId is required' });
+        res.status(400).json({ error: "userId is required" });
         return;
       }
 
@@ -547,28 +666,28 @@ app.get(
           },
         },
         orderBy: {
-          date: 'asc',
+          date: "asc",
         },
       });
 
       res.status(200).json({ emotionLogs });
     } catch (error) {
-      console.error('Error fetching emotion logs:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      console.error("Error fetching emotion logs:", error);
+      res.status(500).json({ error: "Internal server error" });
     }
   }
 );
 
 // 특정 날짜의 EmotionLog 상세 조회
 app.get(
-  '/api/emotion-logs/:date',
+  "/api/emotion-logs/:date",
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { date } = req.params;
       const { userId } = req.query;
 
       if (!userId) {
-        res.status(400).json({ error: 'userId is required' });
+        res.status(400).json({ error: "userId is required" });
         return;
       }
 
@@ -583,21 +702,21 @@ app.get(
       });
 
       if (!emotionLog) {
-        res.status(404).json({ error: 'EmotionLog not found for this date' });
+        res.status(404).json({ error: "EmotionLog not found for this date" });
         return;
       }
 
       res.status(200).json({ emotionLog });
     } catch (error) {
-      console.error('Error fetching emotion log detail:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      console.error("Error fetching emotion log detail:", error);
+      res.status(500).json({ error: "Internal server error" });
     }
   }
 );
 
 // 실제 대화 기록 조회 (디버깅용)
 app.get(
-  '/api/conversations/:userId/:date',
+  "/api/conversations/:userId/:date",
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { userId, date } = req.params;
@@ -616,21 +735,21 @@ app.get(
           },
         },
         orderBy: {
-          createdAt: 'asc',
+          createdAt: "asc",
         },
       });
 
       res.status(200).json({ conversations, count: conversations.length });
     } catch (error) {
-      console.error('Error fetching conversations:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      console.error("Error fetching conversations:", error);
+      res.status(500).json({ error: "Internal server error" });
     }
   }
 );
 
 // 실제 대화 분석해서 감정 로그 생성 (테스트용)
 app.post(
-  '/api/test-emotion-analysis',
+  "/api/test-emotion-analysis",
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { userId, date } = req.body;
@@ -654,12 +773,12 @@ app.post(
           },
         },
         orderBy: {
-          createdAt: 'asc',
+          createdAt: "asc",
         },
       });
 
       if (conversations.length === 0) {
-        res.status(404).json({ error: 'No conversations found for this date' });
+        res.status(404).json({ error: "No conversations found for this date" });
         return;
       }
 
@@ -671,14 +790,14 @@ app.post(
           (conv: { role: string; content: string }) =>
             `${conv.role}: ${conv.content}`
         )
-        .join('\n');
+        .join("\n");
 
-      console.log('Conversation text:', conversationText);
+      console.log("Conversation text:", conversationText);
 
       // AI 분석 요청
       const analysisResult = simpleAnalyzeConversation(conversationText);
 
-      console.log('Analysis result:', analysisResult);
+      console.log("Analysis result:", analysisResult);
 
       // 기존 감정 로그가 있는지 확인
       const existingLog = await prisma.emotionLog.findFirst({
@@ -698,7 +817,7 @@ app.post(
             summary: emotionToPercentage(analysisResult.emotion),
           },
         });
-        console.log('Updated existing emotion log');
+        console.log("Updated existing emotion log");
       } else {
         // 새 로그 생성
         emotionLog = await prisma.emotionLog.create({
@@ -712,7 +831,7 @@ app.post(
             characterName: emotionToSvg(analysisResult.emotion),
           },
         });
-        console.log('Created new emotion log');
+        console.log("Created new emotion log");
       }
 
       res.status(200).json({
@@ -721,29 +840,29 @@ app.post(
         conversationsAnalyzed: conversations.length,
       });
     } catch (error) {
-      console.error('Error in test emotion analysis:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      console.error("Error in test emotion analysis:", error);
+      res.status(500).json({ error: "Internal server error" });
     }
   }
 );
 
 // 스케줄러 수동 실행 API (테스트용)
 app.post(
-  '/api/run-daily-emotion-analysis',
+  "/api/run-daily-emotion-analysis",
   async (req: Request, res: Response): Promise<void> => {
     try {
-      console.log('🔧 Manual daily emotion analysis triggered');
+      console.log("🔧 Manual daily emotion analysis triggered");
       await scheduleDailyEmotionSummary();
       res.status(200).json({
         success: true,
-        message: 'Daily emotion analysis completed successfully',
+        message: "Daily emotion analysis completed successfully",
       });
     } catch (error) {
-      console.error('Manual daily emotion analysis failed:', error);
+      console.error("Manual daily emotion analysis failed:", error);
       res.status(500).json({
         success: false,
-        error: 'Daily emotion analysis failed',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        error: "Daily emotion analysis failed",
+        details: error instanceof Error ? error.message : "Unknown error",
       });
     }
   }
@@ -751,43 +870,43 @@ app.post(
 
 // 커스텀 AI API 엔드포인트
 app.get(
-  '/api/custom-ai',
+  "/api/custom-ai",
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { userId } = req.query;
 
       if (!userId) {
-        res.status(400).json({ error: 'userId is required' });
+        res.status(400).json({ error: "userId is required" });
         return;
       }
 
-      console.log('🔍 커스텀 AI 조회 요청:', userId);
+      console.log("🔍 커스텀 AI 조회 요청:", userId);
       const customAIs = await getCustomAIs(userId as string);
       res.json(customAIs);
     } catch (error) {
-      console.error('커스텀 AI 조회 오류:', error);
-      res.status(500).json({ error: '서버 오류가 발생했습니다' });
+      console.error("커스텀 AI 조회 오류:", error);
+      res.status(500).json({ error: "서버 오류가 발생했습니다" });
     }
   }
 );
 
 app.post(
-  '/api/custom-ai',
+  "/api/custom-ai",
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { userId, name, description, mbtiTypes, systemPrompt } = req.body;
 
-      console.log('[커스텀 AI 생성] 받은 데이터:', {
+      console.log("[커스텀 AI 생성] 받은 데이터:", {
         userId,
         name,
         description,
         mbtiTypes,
         mbtiTypesType: typeof mbtiTypes,
-        systemPrompt: systemPrompt?.substring(0, 100) + '...',
+        systemPrompt: systemPrompt?.substring(0, 100) + "...",
       });
 
       if (!userId || !name || !description || !mbtiTypes || !systemPrompt) {
-        res.status(400).json({ error: '필수 필드가 누락되었습니다' });
+        res.status(400).json({ error: "필수 필드가 누락되었습니다" });
         return;
       }
 
@@ -801,21 +920,21 @@ app.post(
 
       res.json(customAI);
     } catch (error) {
-      console.error('커스텀 AI 생성 오류:', error);
-      res.status(500).json({ error: '서버 오류가 발생했습니다' });
+      console.error("커스텀 AI 생성 오류:", error);
+      res.status(500).json({ error: "서버 오류가 발생했습니다" });
     }
   }
 );
 
 // 로그인 API 엔드포인트
 app.post(
-  '/api/auth/login',
+  "/api/auth/login",
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { kakaoId, email, userName, image } = req.body;
 
       if (!kakaoId) {
-        res.status(400).json({ error: 'kakaoId is required' });
+        res.status(400).json({ error: "kakaoId is required" });
         return;
       }
 
@@ -854,8 +973,8 @@ app.post(
         image: user.image,
       });
     } catch (error) {
-      console.error('Login error:', error);
-      res.status(500).json({ error: '로그인 처리 중 오류가 발생했습니다' });
+      console.error("Login error:", error);
+      res.status(500).json({ error: "로그인 처리 중 오류가 발생했습니다" });
     }
   }
 );

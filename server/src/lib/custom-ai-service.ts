@@ -1,4 +1,5 @@
 import prisma from './prisma';
+import { v4 as uuidv4 } from 'uuid';
 
 export async function getCustomAIs(userId: string) {
   try {
@@ -79,7 +80,7 @@ export async function createCustomAI(data: {
 
     const customAI = await prisma.customAIPersonality.create({
       data: {
-        id: `custom_${Date.now()}`,
+        id: uuidv4(),
         userId: data.userId,
         name: data.name,
         description: data.description,

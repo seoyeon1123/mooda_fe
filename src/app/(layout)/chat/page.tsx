@@ -279,8 +279,6 @@ export default function ChatTab() {
     <div className="flex flex-col h-full bg-stone-50">
       <ChatHeader
         currentPersonality={currentPersonality || null}
-        onDateSelect={handleDateSelect}
-        userId="demo-user"
         showCalendar={showCalendar}
         setShowCalendar={setShowCalendar}
       />

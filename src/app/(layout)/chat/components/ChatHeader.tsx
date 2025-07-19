@@ -1,21 +1,17 @@
-"use client";
+'use client';
 
-import { Calendar } from "lucide-react";
-import { AIPersonality } from "@/lib/ai-personalities";
-import MooIcon from "@/app/(layout)/settings/components/MooIcon";
+import { Calendar } from 'lucide-react';
+import { AIPersonality } from '@/lib/ai-personalities';
+import MooIcon from '@/app/(layout)/settings/components/MooIcon';
 
 interface ChatHeaderProps {
   currentPersonality: AIPersonality | null;
-  onDateSelect: (date: Date) => void;
-  userId: string;
   showCalendar: boolean;
   setShowCalendar: (show: boolean) => void;
 }
 
 export default function ChatHeader({
   currentPersonality,
-  onDateSelect,
-  userId,
   showCalendar,
   setShowCalendar,
 }: ChatHeaderProps) {

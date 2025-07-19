@@ -158,7 +158,12 @@ app.get('/api/user', async (req: Request, res: Response): Promise<void> => {
     }
 
     console.log('[GET /api/user] 응답:', user);
-    res.json(user);
+    // 클라이언트가 기대하는 필드명으로 변환
+    const response = {
+      ...user,
+      selectedPersonalityId: user.selected_personality_id || 'MUNI',
+    };
+    res.json(response);
   } catch (error) {
     console.error('[GET /api/user] 오류:', error);
     res.status(500).json({ error: '서버 오류가 발생했습니다.' });

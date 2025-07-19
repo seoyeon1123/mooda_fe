@@ -11,11 +11,28 @@ interface UserState {
     image?: string | null;
   } | null;
   selectedPersonalityId: string;
+  selectedPersonality: {
+    id: string;
+    name: string;
+    description: string;
+    shortDescription: string;
+    iconType: string;
+  } | null;
   personalityChanged: boolean;
+  chatMessages: {
+    id: string;
+    role: string;
+    content: string;
+    createdAt: string;
+  }[]; // 채팅 메시지 저장
   setUser: (user: UserState['user']) => void;
   clearUser: () => void;
   setSelectedPersonalityId: (id: string) => void;
   saveSelectedPersonalityId: (id: string) => Promise<void>;
+  setSelectedPersonality: (
+    personality: UserState['selectedPersonality']
+  ) => void;
+  setChatMessages: (messages: UserState['chatMessages']) => void; // 채팅 메시지 설정
   loadUserData: () => Promise<void>;
   ackPersonalityChange: () => void;
 }
@@ -25,7 +42,9 @@ const useUserStore = create<UserState>()(
     (set, get) => ({
       user: null,
       selectedPersonalityId: 'MUNI',
+      selectedPersonality: null,
       personalityChanged: false,
+      chatMessages: [],
       setUser: (user) => set({ user }),
       clearUser: () => set({ user: null }),
       setSelectedPersonalityId: (id) => {
@@ -34,6 +53,9 @@ const useUserStore = create<UserState>()(
           set({ selectedPersonalityId: id, personalityChanged: true });
         }
       },
+      setSelectedPersonality: (personality) =>
+        set({ selectedPersonality: personality }),
+      setChatMessages: (messages) => set({ chatMessages: messages }),
       saveSelectedPersonalityId: async (id) => {
         try {
           const session = await getSession();
@@ -105,6 +127,8 @@ const useUserStore = create<UserState>()(
       partialize: (state) => ({
         user: state.user,
         selectedPersonalityId: state.selectedPersonalityId,
+        selectedPersonality: state.selectedPersonality,
+        chatMessages: state.chatMessages,
       }),
     }
   )

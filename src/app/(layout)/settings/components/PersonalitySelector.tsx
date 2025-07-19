@@ -10,13 +10,10 @@ interface CustomAI {
   id: string;
   name: string;
   description: string;
-  mbtiTypes: {
-    energy: 'I' | 'E';
-    information: 'S' | 'N';
-    decisions: 'T' | 'F';
-    lifestyle: 'J' | 'P';
-  };
-  createdAt: Date;
+  mbti_types: string; // JSON 문자열로 저장됨
+  system_prompt: string;
+  user_id: string;
+  created_at: string;
 }
 
 interface PersonalitySelectorProps {
@@ -61,7 +58,29 @@ const getMbtiIcon = (mbti: unknown): AIPersonality['iconType'] => {
 };
 
 // MBTI 타입별 특성 문구 생성
-const generateMbtiTexts = (mbti: CustomAI['mbtiTypes']) => {
+const generateMbtiTexts = (
+  mbti: {
+    energy?: string;
+    information?: string;
+    decisions?: string;
+    lifestyle?: string;
+  } | null
+) => {
+  // mbti가 undefined인 경우 안전 처리
+  if (
+    !mbti?.energy ||
+    !mbti?.information ||
+    !mbti?.decisions ||
+    !mbti?.lifestyle
+  ) {
+    return {
+      DEFAULT: {
+        shortDescription: ['MBTI 정보를 불러올 수 없습니다'],
+        description: ['MBTI 정보를 불러올 수 없습니다'],
+      },
+    };
+  }
+
   const mbtiString = `${mbti.energy}${mbti.information}${mbti.decisions}${mbti.lifestyle}`;
 
   const mbtiTexts: Record<
@@ -309,6 +328,11 @@ const generateMbtiTexts = (mbti: CustomAI['mbtiTypes']) => {
     ],
   };
 
+  console.log('🔍 MBTI String:', mbtiString);
+  console.log('🔍 MBTI Texts:', mbtiTexts);
+  console.log('🔍 Selected Texts:', mbtiTexts[mbtiString]);
+  console.log('🔍 Default Texts:', defaultTexts);
+
   const selectedTexts = mbtiTexts[mbtiString] || defaultTexts;
 
   // 각 배열에서 랜덤으로 선택
@@ -345,6 +369,7 @@ export default function PersonalitySelector({
       );
       if (response.ok) {
         const data = await response.json();
+        console.log('🔍 커스텀 AI 데이터:', data);
         setCustomAIs(data);
       }
     } catch (error) {
@@ -361,15 +386,27 @@ export default function PersonalitySelector({
   }, [session?.user?.id, fetchCustomAIs]);
 
   const handleCustomAISelect = (customAI: CustomAI) => {
-    const texts = generateMbtiTexts(customAI.mbtiTypes);
+    // mbti_types 파싱
+    let mbtiTypes;
+    try {
+      mbtiTypes =
+        typeof customAI.mbti_types === 'string'
+          ? JSON.parse(customAI.mbti_types)
+          : customAI.mbti_types;
+    } catch (error) {
+      console.error('MBTI 파싱 오류:', error);
+      mbtiTypes = null;
+    }
+
+    const texts = generateMbtiTexts(mbtiTypes);
 
     // 커스텀 AI를 AIPersonality 형식으로 변환
     const aiPersonality: AIPersonality = {
       id: customAI.id,
       name: customAI.name,
-      description: texts.description,
-      shortDescription: texts.shortDescription,
-      iconType: getMbtiIcon(customAI.mbtiTypes),
+      description: texts.description || '',
+      shortDescription: texts.shortDescription || '',
+      iconType: getMbtiIcon(mbtiTypes),
       systemPrompt: '', // 실제로는 서버에서 가져옴
       color: 'bg-purple-100 border-purple-300',
       personalitySummary: '사용자 맞춤형 AI 성격',
@@ -454,7 +491,23 @@ export default function PersonalitySelector({
         ) : (
           <div className="space-y-3">
             {customAIs.map((customAI) => {
-              const texts = generateMbtiTexts(customAI.mbtiTypes);
+              console.log('🔍 렌더링할 커스텀 AI:', customAI);
+
+              // mbti_types가 JSON 문자열이므로 파싱
+              let mbtiTypes;
+              try {
+                mbtiTypes =
+                  typeof customAI.mbti_types === 'string'
+                    ? JSON.parse(customAI.mbti_types)
+                    : customAI.mbti_types;
+              } catch (error) {
+                console.error('MBTI 파싱 오류:', error);
+                mbtiTypes = null;
+              }
+
+              console.log('🔍 파싱된 MBTI Types:', mbtiTypes);
+              const texts = generateMbtiTexts(mbtiTypes);
+              console.log('🔍 생성된 텍스트:', texts);
 
               return (
                 <div
@@ -479,10 +532,7 @@ export default function PersonalitySelector({
                   <div>
                     {/* 이미지와 이름을 나란히 */}
                     <div className="flex items-center space-x-4 mb-3">
-                      <MooIcon
-                        type={getMbtiIcon(customAI.mbtiTypes)}
-                        size={48}
-                      />
+                      <MooIcon type={getMbtiIcon(mbtiTypes)} size={48} />
                       <h4 className="font-bold text-gray-800 text-lg">
                         {customAI.name}
                       </h4>

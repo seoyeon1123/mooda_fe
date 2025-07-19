@@ -54,7 +54,7 @@
 ### 1. API Route 구현 (`src/app/api/socket/route.ts`)
 
 ```typescript
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
@@ -63,7 +63,7 @@ const userConversations = new Map<
   string,
   Array<{
     id: number;
-    type: "user" | "ai";
+    type: 'user' | 'ai';
     content: string;
     timestamp: Date;
   }>
@@ -88,7 +88,7 @@ const chat = model.startChat({
 });
 
 const systemPrompt =
-  "당신은 친근한 친구입니다. 사용자의 이야기에 2줄 이내로 짧고 따뜻하게 공감해주세요...";
+  '당신은 친근한 친구입니다. 사용자의 이야기에 2줄 이내로 짧고 따뜻하게 공감해주세요...';
 ```
 
 **최적화 포인트:**
@@ -195,11 +195,11 @@ GEMINI_API_KEY=your_gemini_api_key_here
             <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
             <div
               className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-              style={{ animationDelay: "0.1s" }}
+              style={{ animationDelay: '0.1s' }}
             ></div>
             <div
               className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-              style={{ animationDelay: "0.2s" }}
+              style={{ animationDelay: '0.2s' }}
             ></div>
           </div>
           <span className="text-sm text-gray-500">AI가 응답을 작성 중...</span>

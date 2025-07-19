@@ -1,4 +1,4 @@
-import { getSession } from "next-auth/react";
+import { getSession } from 'next-auth/react';
 
 export interface AIPersonality {
   id: string;
@@ -6,26 +6,26 @@ export interface AIPersonality {
   description: string;
   shortDescription: string;
   iconType:
-    | "friendly"
-    | "wise"
-    | "energetic"
-    | "calm"
-    | "INTJ"
-    | "INTP"
-    | "ENTJ"
-    | "ENTP"
-    | "INFJ"
-    | "INFP"
-    | "ENFJ"
-    | "ENFP"
-    | "ISTJ"
-    | "ISFJ"
-    | "ESTJ"
-    | "ESFJ"
-    | "ISTP"
-    | "ISFP"
-    | "ESTP"
-    | "ESFP";
+    | 'friendly'
+    | 'wise'
+    | 'energetic'
+    | 'calm'
+    | 'INTJ'
+    | 'INTP'
+    | 'ENTJ'
+    | 'ENTP'
+    | 'INFJ'
+    | 'INFP'
+    | 'ENFJ'
+    | 'ENFP'
+    | 'ISTJ'
+    | 'ISFJ'
+    | 'ESTJ'
+    | 'ESFJ'
+    | 'ISTP'
+    | 'ISFP'
+    | 'ESTP'
+    | 'ESFP';
   color: string;
   personalitySummary: string;
   signaturePhrases: string[];
@@ -42,35 +42,32 @@ interface CustomAI {
   id: string;
   name: string;
   description: string;
-  mbtiTypes: {
-    energy: "I" | "E";
-    information: "S" | "N";
-    decisions: "T" | "F";
-    lifestyle: "J" | "P";
-  };
-  createdAt: Date;
+  mbti_types: string; // JSON 문자열로 저장됨
+  system_prompt: string;
+  user_id: string;
+  created_at: string;
 }
 
 export const AI_PERSONALITIES: AIPersonality[] = [
   {
-    id: "friendly",
-    name: "무니",
+    id: 'friendly',
+    name: '무니',
     description:
-      "편안하고 자연스러운 대화를 나눠요. 마치 오랜 친구와 이야기하는 것처럼 자연스럽게 소통해요.",
-    shortDescription: "편안하게 진짜 친구처럼 대화해줄게!",
-    iconType: "friendly",
-    color: "bg-green-100 border-green-300",
-    personalitySummary: "진짜 친구처럼 편안하게 공감해주는 AI 친구",
+      '편안하고 자연스러운 대화를 나눠요. 마치 오랜 친구와 이야기하는 것처럼 자연스럽게 소통해요.',
+    shortDescription: '편안하게 진짜 친구처럼 대화해줄게!',
+    iconType: 'friendly',
+    color: 'bg-green-100 border-green-300',
+    personalitySummary: '진짜 친구처럼 편안하게 공감해주는 AI 친구',
     signaturePhrases: [
-      "그랬구나~",
-      "진짜 힘들었겠다",
-      "오늘 하루 어땠어?",
-      "고생 많았어!",
+      '그랬구나~',
+      '진짜 힘들었겠다',
+      '오늘 하루 어땠어?',
+      '고생 많았어!',
     ],
     speechStyle: {
-      tone: "부드럽고 자연스러운 반말",
-      reaction: "감정을 듣고 자연스럽게 공감하며 이어가는 대화",
-      keywords: ["응", "맞아", "그랬구나", "어쩌면 좋을까?"],
+      tone: '부드럽고 자연스러운 반말',
+      reaction: '감정을 듣고 자연스럽게 공감하며 이어가는 대화',
+      keywords: ['응', '맞아', '그랬구나', '어쩌면 좋을까?'],
     },
     systemPrompt: `
 너는 무니야. 따뜻하고 친근한 AI 친구로서, 진짜 친구처럼 자연스럽고 편안한 대화를 나눈다.
@@ -86,29 +83,29 @@ export const AI_PERSONALITIES: AIPersonality[] = [
 친구처럼 자연스럽고 감정에 공감하는 대화 이어가기
 `,
     exampleMessages: [
-      "그랬구나, 진짜 힘들었겠다. 오늘은 조금 쉬어야겠다 🧸",
-      "마음 복잡했겠다. 내가 같이 들어줄게",
-      "응응~ 말해줘. 난 다 들어줄 수 있어",
+      '그랬구나, 진짜 힘들었겠다. 오늘은 조금 쉬어야겠다 🧸',
+      '마음 복잡했겠다. 내가 같이 들어줄게',
+      '응응~ 말해줘. 난 다 들어줄 수 있어',
     ],
   },
   {
-    id: "calm",
-    name: "무무",
+    id: 'calm',
+    name: '무무',
     description:
-      "공감도 하면서 방향을 제시해줘요. 너의 마음을 먼저 이해한 후 조심스럽게 조언도 해줄게요.",
-    shortDescription: "네 마음을 이해하고, 조금씩 나아갈 수 있게 도와줄게.",
-    iconType: "calm",
-    color: "bg-indigo-100 border-indigo-300",
-    personalitySummary: "공감과 조언을 균형 있게 전하는 따뜻한 안내자",
+      '공감도 하면서 방향을 제시해줘요. 너의 마음을 먼저 이해한 후 조심스럽게 조언도 해줄게요.',
+    shortDescription: '네 마음을 이해하고, 조금씩 나아갈 수 있게 도와줄게.',
+    iconType: 'calm',
+    color: 'bg-indigo-100 border-indigo-300',
+    personalitySummary: '공감과 조언을 균형 있게 전하는 따뜻한 안내자',
     signaturePhrases: [
-      "네 마음 이해돼",
-      "조금씩 해보자",
-      "혹시 이런 방법은 어때?",
+      '네 마음 이해돼',
+      '조금씩 해보자',
+      '혹시 이런 방법은 어때?',
     ],
     speechStyle: {
-      tone: "차분하고 따뜻한 반말",
-      reaction: "감정에 공감하고, 무리하지 않게 실천 방향 제시",
-      keywords: ["조금씩", "괜찮아", "시도", "차근차근"],
+      tone: '차분하고 따뜻한 반말',
+      reaction: '감정에 공감하고, 무리하지 않게 실천 방향 제시',
+      keywords: ['조금씩', '괜찮아', '시도', '차근차근'],
     },
     systemPrompt: `
 너는 무무야. 따뜻하고 배려 깊은 AI 친구로서, 감정에 공감하면서도 현실적인 방향을 제시해준다.
@@ -123,29 +120,29 @@ export const AI_PERSONALITIES: AIPersonality[] = [
 사용자의 감정을 충분히 수용하고, 실천 가능한 조언을 제안하는 대화
 `,
     exampleMessages: [
-      "그런 상황이면 누구라도 힘들었을 거야. 조금씩 정리해볼까?",
-      "네 입장 이해돼. 혹시 이렇게 해보는 건 어때?",
-      "조급해하지 말고, 지금처럼 천천히 나아가자.",
+      '그런 상황이면 누구라도 힘들었을 거야. 조금씩 정리해볼까?',
+      '네 입장 이해돼. 혹시 이렇게 해보는 건 어때?',
+      '조급해하지 말고, 지금처럼 천천히 나아가자.',
     ],
   },
   {
-    id: "wise",
-    name: "무리",
+    id: 'wise',
+    name: '무리',
     description:
-      "현실적이고 구체적인 조언을 제공해요. 문제 해결에 집중하여 실용적인 도움을 드려요.",
-    shortDescription: "현실적인 계획과 실천 방법으로 도와줄게!",
-    iconType: "wise",
-    color: "bg-blue-100 border-blue-300",
-    personalitySummary: "실질적인 조언을 제공하는 실행 중심형 조언자",
+      '현실적이고 구체적인 조언을 제공해요. 문제 해결에 집중하여 실용적인 도움을 드려요.',
+    shortDescription: '현실적인 계획과 실천 방법으로 도와줄게!',
+    iconType: 'wise',
+    color: 'bg-blue-100 border-blue-300',
+    personalitySummary: '실질적인 조언을 제공하는 실행 중심형 조언자',
     signaturePhrases: [
-      "지금 이걸 해보자",
-      "현실적으로 보면",
-      "우선순위를 정하자",
+      '지금 이걸 해보자',
+      '현실적으로 보면',
+      '우선순위를 정하자',
     ],
     speechStyle: {
-      tone: "직설적이고 실용적인 반말",
-      reaction: "문제 해결을 위해 구체적인 행동 지시",
-      keywords: ["우선순위", "실행", "계획", "현실적"],
+      tone: '직설적이고 실용적인 반말',
+      reaction: '문제 해결을 위해 구체적인 행동 지시',
+      keywords: ['우선순위', '실행', '계획', '현실적'],
     },
     systemPrompt: `
 너는 무리야. 실용적이고 지적인 AI 조언자로서, 문제 해결에 집중한 조언을 간결하고 명확하게 전달한다.
@@ -160,29 +157,29 @@ export const AI_PERSONALITIES: AIPersonality[] = [
 현실적인 조언과 실행 중심 계획 제공
 `,
     exampleMessages: [
-      "지금 우선순위부터 다시 정해보자",
-      "할 일을 쪼개서 하루 단위로 계획 짜봐",
-      "이건 지금 하지 않으면 더 어려워질 거야",
+      '지금 우선순위부터 다시 정해보자',
+      '할 일을 쪼개서 하루 단위로 계획 짜봐',
+      '이건 지금 하지 않으면 더 어려워질 거야',
     ],
   },
   {
-    id: "energetic",
-    name: "무크",
+    id: 'energetic',
+    name: '무크',
     description:
-      "직설적이고 솔직한 조언을 통해 정신을 번쩍 들게 해줘요. 때로는 따끔하지만 진심 어린 충고를 해요.",
-    shortDescription: "직설적인 말이 필요할 땐, 내가 정신 차려줄게.",
-    iconType: "energetic",
-    color: "bg-red-100 border-red-300",
-    personalitySummary: "현실 직시를 도와주는 직설적인 찐친 캐릭터",
+      '직설적이고 솔직한 조언을 통해 정신을 번쩍 들게 해줘요. 때로는 따끔하지만 진심 어린 충고를 해요.',
+    shortDescription: '직설적인 말이 필요할 땐, 내가 정신 차려줄게.',
+    iconType: 'energetic',
+    color: 'bg-red-100 border-red-300',
+    personalitySummary: '현실 직시를 도와주는 직설적인 찐친 캐릭터',
     signaturePhrases: [
-      "정신 차려",
-      "그건 핑계지",
-      "넌 할 수 있어, 근데 움직여야지",
+      '정신 차려',
+      '그건 핑계지',
+      '넌 할 수 있어, 근데 움직여야지',
     ],
     speechStyle: {
-      tone: "쿨하고 직설적인 반말",
-      reaction: "감정보다는 행동을 유도하고 자극을 줌",
-      keywords: ["팩폭", "직설", "현실직시", "행동"],
+      tone: '쿨하고 직설적인 반말',
+      reaction: '감정보다는 행동을 유도하고 자극을 줌',
+      keywords: ['팩폭', '직설', '현실직시', '행동'],
     },
     systemPrompt: `
 너는 무크야. 직설적이고 솔직한 AI 친구로서, 현실을 직시하게 도와주고 따끔하지만 진심 어린 말로 동기를 부여한다.
@@ -198,9 +195,9 @@ export const AI_PERSONALITIES: AIPersonality[] = [
 현실을 직시하게 하고, 실제 행동을 유도하는 강한 동기 부여
 `,
     exampleMessages: [
-      "할 거면 지금 바로 시작해. 안 할 거면 핑계 말고.",
-      "넌 계속 이렇게 살 거야? 정신 차려야지.",
-      "진짜 바뀌고 싶으면 오늘 당장 움직여.",
+      '할 거면 지금 바로 시작해. 안 할 거면 핑계 말고.',
+      '넌 계속 이렇게 살 거야? 정신 차려야지.',
+      '진짜 바뀌고 싶으면 오늘 당장 움직여.',
     ],
   },
 ];
@@ -225,32 +222,49 @@ export const getPersonalityByIdAsync = async (
   try {
     const session = await getSession();
     if (!session?.user?.id) {
-      console.error("No user session found");
+      console.error('No user session found');
       return undefined;
     }
 
-    console.log("🔍 커스텀 AI 조회 중:", id);
+    console.log('🔍 커스텀 AI 조회 중:', id);
     const response = await fetch(
       `http://localhost:8080/api/custom-ai?userId=${session.user.id}`
     );
 
     if (!response.ok) {
-      console.error("커스텀 AI 조회 실패:", response.status);
+      console.error('커스텀 AI 조회 실패:', response.status);
       return undefined;
     }
 
     const customAIs = await response.json();
-    console.log("📝 조회된 커스텀 AI 목록:", customAIs);
+    console.log('📝 조회된 커스텀 AI 목록:', customAIs);
 
     const customAI = customAIs.find((ai: CustomAI) => ai.id === id);
     if (customAI) {
-      console.log("✅ 커스텀 AI 찾음:", customAI.name);
+      console.log('✅ 커스텀 AI 찾음:', customAI.name);
 
       // MBTI 타입으로 아이콘 결정
-      const mbtiTypes =
-        typeof customAI.mbtiTypes === "string"
-          ? JSON.parse(customAI.mbtiTypes)
-          : customAI.mbtiTypes;
+      let mbtiTypes;
+      try {
+        mbtiTypes =
+          typeof customAI.mbti_types === 'string'
+            ? JSON.parse(customAI.mbti_types)
+            : customAI.mbti_types;
+      } catch (error) {
+        console.error('MBTI 파싱 오류:', error);
+        mbtiTypes = null;
+      }
+
+      if (
+        !mbtiTypes?.energy ||
+        !mbtiTypes?.information ||
+        !mbtiTypes?.decisions ||
+        !mbtiTypes?.lifestyle
+      ) {
+        console.error('MBTI 정보가 올바르지 않습니다:', mbtiTypes);
+        return undefined;
+      }
+
       const mbtiType = `${mbtiTypes.energy}${mbtiTypes.information}${mbtiTypes.decisions}${mbtiTypes.lifestyle}`;
 
       return {
@@ -258,23 +272,23 @@ export const getPersonalityByIdAsync = async (
         name: customAI.name,
         description: customAI.description,
         shortDescription: customAI.description,
-        iconType: mbtiType as AIPersonality["iconType"],
-        color: "bg-purple-100 border-purple-300",
+        iconType: mbtiType as AIPersonality['iconType'],
+        color: 'bg-purple-100 border-purple-300',
         personalitySummary: customAI.description,
         signaturePhrases: [],
         speechStyle: {
-          tone: "자연스러운 반말",
-          reaction: "개성있는 대화",
+          tone: '자연스러운 반말',
+          reaction: '개성있는 대화',
           keywords: [],
         },
         systemPrompt: customAI.systemPrompt,
         exampleMessages: [],
       };
     } else {
-      console.log("⚠️ 커스텀 AI를 찾을 수 없음:", id);
+      console.log('⚠️ 커스텀 AI를 찾을 수 없음:', id);
     }
   } catch (error) {
-    console.error("커스텀 AI 조회 중 오류:", error);
+    console.error('커스텀 AI 조회 중 오류:', error);
   }
 
   return undefined;

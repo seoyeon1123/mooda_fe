@@ -25,6 +25,7 @@ export default function ChatTab() {
   const ackPersonalityChange = useUserStore(
     (state) => state.ackPersonalityChange
   );
+  const setChatMessages = useUserStore((state) => state.setChatMessages);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
@@ -78,6 +79,22 @@ export default function ChatTab() {
         setMessages([noMessage]);
         console.log('setMessages (no message):', [noMessage]);
       } else {
+        // 서버에서 받은 대화 기록의 createdAt을 Date 객체로 변환
+        const processedConversations = conversations.map(
+          (conv: {
+            created_at?: string;
+            createdAt?: string | Date;
+            id: string;
+            role: string;
+            content: string;
+          }) => ({
+            ...conv,
+            createdAt: new Date(
+              conv.created_at || conv.createdAt || Date.now()
+            ),
+          })
+        );
+
         const messagesToSet = [
           {
             id: `date-${Date.now()}`,
@@ -85,7 +102,7 @@ export default function ChatTab() {
             content: `--- ${date.toLocaleDateString()} ---`,
             createdAt: date,
           },
-          ...conversations,
+          ...processedConversations,
         ];
         setMessages(messagesToSet);
         console.log('setMessages (with conversations):', messagesToSet);
@@ -246,6 +263,17 @@ export default function ChatTab() {
 
     return () => clearInterval(timer);
   }, [lastMidnight]);
+
+  // 메시지가 변경될 때마다 스토어에 저장
+  useEffect(() => {
+    if (messages.length > 0) {
+      const messagesToStore = messages.map((msg) => ({
+        ...msg,
+        createdAt: msg.createdAt?.toISOString() || new Date().toISOString(),
+      }));
+      setChatMessages(messagesToStore);
+    }
+  }, [messages, setChatMessages]);
 
   return (
     <div className="flex flex-col h-full bg-stone-50">

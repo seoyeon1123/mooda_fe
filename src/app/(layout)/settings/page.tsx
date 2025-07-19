@@ -20,12 +20,12 @@ import Image from 'next/image';
 
 export default function SettingsPage() {
   const [showPersonalitySelector, setShowPersonalitySelector] = useState(false);
-  const [selectedPersonality, setSelectedPersonality] =
-    useState<AIPersonality | null>(null);
   const {
     user,
     selectedPersonalityId,
+    selectedPersonality: storedPersonality,
     saveSelectedPersonalityId,
+    setSelectedPersonality,
     loadUserData,
     clearUser,
   } = useUserStore();
@@ -38,14 +38,35 @@ export default function SettingsPage() {
   // 선택된 성격 로드 (커스텀 AI 포함)
   useEffect(() => {
     const loadSelectedPersonality = async () => {
-      const personality = await getPersonalityByIdAsync(selectedPersonalityId);
-      setSelectedPersonality(personality || null);
+      // 스토어에 성격 정보가 없고 selectedPersonalityId가 있으면 로드
+      if (selectedPersonalityId && !storedPersonality) {
+        const personality = await getPersonalityByIdAsync(
+          selectedPersonalityId
+        );
+        if (personality) {
+          setSelectedPersonality({
+            id: personality.id,
+            name: personality.name,
+            description: personality.description,
+            shortDescription: personality.shortDescription,
+            iconType: personality.iconType,
+          });
+        }
+      }
     };
     loadSelectedPersonality();
-  }, [selectedPersonalityId]);
+  }, [selectedPersonalityId, storedPersonality, setSelectedPersonality]);
 
   const handlePersonalityChange = async (personality: AIPersonality) => {
     await saveSelectedPersonalityId(personality.id);
+    // 성격 정보를 스토어에 저장
+    setSelectedPersonality({
+      id: personality.id,
+      name: personality.name,
+      description: personality.description,
+      shortDescription: personality.shortDescription,
+      iconType: personality.iconType,
+    });
     setShowPersonalitySelector(false);
   };
 
@@ -129,12 +150,39 @@ export default function SettingsPage() {
             <div className="flex items-center space-x-3">
               <Bot size={20} className="text-gray-600" />
               <div className="text-left">
-                {selectedPersonality && (
+                {storedPersonality && (
                   <span className="text-sm text-gray-500 flex flex-row items-center gap-1">
                     현재는
-                    <MooIcon type={selectedPersonality.iconType} size={20} />
+                    <MooIcon
+                      type={
+                        storedPersonality.iconType as
+                          | 'user'
+                          | 'friendly'
+                          | 'wise'
+                          | 'energetic'
+                          | 'calm'
+                          | 'INTJ'
+                          | 'INTP'
+                          | 'ENTJ'
+                          | 'ENTP'
+                          | 'INFJ'
+                          | 'INFP'
+                          | 'ENFJ'
+                          | 'ENFP'
+                          | 'ISTJ'
+                          | 'ISFJ'
+                          | 'ESTJ'
+                          | 'ESFJ'
+                          | 'ISTP'
+                          | 'ISFP'
+                          | 'ESTP'
+                          | 'ESFP'
+                          | 'default'
+                      }
+                      size={20}
+                    />
                     <span className="font-bold text-green-800">
-                      {selectedPersonality.name}
+                      {storedPersonality.name}
                     </span>
                     와 대화중이에요
                   </span>

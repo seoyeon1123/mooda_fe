@@ -8,39 +8,20 @@ export const authOptions: AuthOptions = {
       clientSecret: process.env.KAKAO_CLIENT_SECRET!,
     }),
   ],
+  secret: process.env.NEXTAUTH_SECRET,
   callbacks: {
     async jwt({ token, user, account }) {
       if (account && user) {
-        // 서버에 사용자 정보 전송
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              kakaoId: account.providerAccountId,
-              email: user.email,
-              userName: user.name,
-              image: user.image, // 이미지 정보 추가
-            }),
-          }
-        );
-
-        if (response.ok) {
-          const data = await response.json();
-          return {
-            ...token,
-            accessToken: account.access_token,
-            refreshToken: account.refresh_token,
-            kakaoId: account.providerAccountId,
-            userId: data.userId,
-            name: user.name,
-            email: user.email,
-            image: user.image,
-          };
-        }
+        return {
+          ...token,
+          accessToken: account.access_token,
+          refreshToken: account.refresh_token,
+          kakaoId: account.providerAccountId,
+          userId: account.providerAccountId,
+          name: user.name,
+          email: user.email,
+          image: user.image,
+        };
       }
       return token;
     },

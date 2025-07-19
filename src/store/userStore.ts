@@ -64,7 +64,9 @@ const useUserStore = create<UserState>()(
             return;
           }
 
-          const response = await fetch(`http://localhost:8080/api/user`, {
+          const apiUrl =
+            process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+          const response = await fetch(`${apiUrl}/api/user`, {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
@@ -84,6 +86,8 @@ const useUserStore = create<UserState>()(
           }
         } catch (error) {
           console.error('성격 저장 중 오류:', error);
+          // 오류가 발생해도 로컬 상태는 업데이트
+          set({ selectedPersonalityId: id, personalityChanged: true });
         }
       },
       loadUserData: async () => {
@@ -94,8 +98,10 @@ const useUserStore = create<UserState>()(
             return;
           }
 
+          const apiUrl =
+            process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
           const response = await fetch(
-            `http://localhost:8080/api/user?userId=${session.user.id}`,
+            `${apiUrl}/api/user?userId=${session.user.id}`,
             {
               credentials: 'include',
             }
@@ -118,6 +124,10 @@ const useUserStore = create<UserState>()(
           }
         } catch (error) {
           console.error('사용자 데이터 로드 실패:', error);
+          // 오류가 발생해도 기본값으로 설정
+          set({
+            selectedPersonalityId: 'MUNI',
+          });
         }
       },
       ackPersonalityChange: () => set({ personalityChanged: false }),

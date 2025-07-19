@@ -15,15 +15,17 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const cors_1 = __importDefault(require("cors"));
-const prisma_1 = __importDefault(require("./lib/prisma"));
+const node_cron_1 = __importDefault(require("node-cron"));
+const generative_ai_1 = require("@google/generative-ai");
+const crypto_1 = __importDefault(require("crypto"));
+const supabase_service_js_1 = require("./lib/supabase-service.js");
 const scheduler_1 = require("./lib/scheduler");
 const emotion_service_1 = require("./lib/emotion-service");
-const generative_ai_1 = require("@google/generative-ai");
 const ai_personalities_1 = require("./lib/ai-personalities");
-const crypto_1 = __importDefault(require("crypto"));
-// 커스텀 AI 서비스 가져오기
-const custom_ai_service_1 = require("./lib/custom-ai-service");
 dotenv_1.default.config();
+// Supabase 서비스 초기화
+const supabaseService = new supabase_service_js_1.SupabaseService();
+// 타입 정의
 const app = (0, express_1.default)();
 const port = process.env.PORT || 8080;
 // Gemini AI 초기화
@@ -39,75 +41,6 @@ app.use((0, cors_1.default)({
 }));
 // JSON 파서 설정
 app.use(express_1.default.json());
-// Health check 엔드포인트
-app.get('/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-// 사용자 정보 조회 API
-app.get('/api/user', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    try {
-        const userId = req.query.userId;
-        console.log('[GET /api/user] 요청:', { userId });
-        if (!userId) {
-            return res.status(400).json({ error: 'userId가 필요합니다.' });
-        }
-        const user = yield prisma_1.default.user.findUnique({
-            where: { id: userId },
-            include: {
-                customAIPersonalities: true,
-            },
-        });
-        if (!user) {
-            return res.status(404).json({ error: '사용자를 찾을 수 없습니다.' });
-        }
-        console.log('[GET /api/user] 응답:', user);
-        return res.json(user);
-    }
-    catch (error) {
-        console.error('[GET /api/user] 오류:', error);
-        return res.status(500).json({ error: '서버 오류가 발생했습니다.' });
-    }
-}));
-// 사용자 정보 업데이트 API
-app.put('/api/user', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    try {
-        const { userId, selectedPersonalityId } = req.body;
-        console.log('[PUT /api/user] 요청:', { userId, selectedPersonalityId });
-        if (!userId) {
-            return res.status(400).json({ error: 'userId가 필요합니다.' });
-        }
-        const existingUser = yield prisma_1.default.user.findUnique({
-            where: { id: userId },
-            include: {
-                customAIPersonalities: true,
-            },
-        });
-        if (!existingUser) {
-            return res.status(404).json({ error: '사용자를 찾을 수 없습니다.' });
-        }
-        // selectedPersonalityId 유효성 검증
-        if (selectedPersonalityId) {
-            const isDefaultAI = ai_personalities_1.AI_PERSONALITIES.some((ai) => ai.id === selectedPersonalityId);
-            const isCustomAI = existingUser.customAIPersonalities.some((ai) => ai.id === selectedPersonalityId);
-            if (!isDefaultAI && !isCustomAI) {
-                return res.status(400).json({ error: '유효하지 않은 AI 성격입니다.' });
-            }
-        }
-        const updatedUser = yield prisma_1.default.user.update({
-            where: { id: userId },
-            data: { selectedPersonalityId },
-            include: {
-                customAIPersonalities: true,
-            },
-        });
-        console.log('[PUT /api/user] 응답:', updatedUser);
-        return res.json(updatedUser);
-    }
-    catch (error) {
-        console.error('[PUT /api/user] 오류:', error);
-        return res.status(500).json({ error: '서버 오류가 발생했습니다.' });
-    }
-}));
 // 인증 미들웨어
 const authenticateUser = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     var _a, _b;
@@ -118,14 +51,10 @@ const authenticateUser = (req, res, next) => __awaiter(void 0, void 0, void 0, f
             return;
         }
         // 사용자 존재 여부 확인
-        const user = yield prisma_1.default.user.findUnique({
-            where: { id: userId },
-        });
+        const user = yield supabaseService.getUserById(userId);
         if (!user) {
             // 사용자가 없으면 카카오 ID로 다시 확인
-            const kakaoUser = yield prisma_1.default.user.findFirst({
-                where: { kakaoId: userId },
-            });
+            const kakaoUser = yield supabaseService.getUserByKakaoId(userId);
             if (!kakaoUser) {
                 res.status(401).json({ error: '유효하지 않은 사용자입니다' });
                 return;
@@ -154,6 +83,12 @@ app.post('/api/socket', authenticateUser, (req, res) => __awaiter(void 0, void 0
             case 'get-conversation-history':
                 yield getConversationHistory(data, res);
                 break;
+            case 'get-conversation-history-by-date':
+                yield getConversationHistoryByDate(data, res);
+                break;
+            case 'get-conversation-dates':
+                yield getConversationDates(data, res);
+                break;
             default:
                 res.status(400).json({ error: 'Unknown action' });
         }
@@ -161,6 +96,57 @@ app.post('/api/socket', authenticateUser, (req, res) => __awaiter(void 0, void 0
     catch (error) {
         console.error('API Error:', error);
         res.status(500).json({ error: 'An internal server error occurred' });
+    }
+}));
+// 사용자 정보 조회 API
+app.get('/api/user', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const userId = req.query.userId;
+        console.log('[GET /api/user] 요청:', { userId });
+        if (!userId) {
+            res.status(400).json({ error: 'userId가 필요합니다.' });
+            return;
+        }
+        const user = yield supabaseService.getUserById(userId);
+        if (!user) {
+            res.status(404).json({ error: '사용자를 찾을 수 없습니다.' });
+            return;
+        }
+        console.log('[GET /api/user] 응답:', user);
+        res.json(user);
+    }
+    catch (error) {
+        console.error('[GET /api/user] 오류:', error);
+        res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+    }
+}));
+// 사용자 정보 업데이트 API
+app.put('/api/user', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { userId, selectedPersonalityId } = req.body;
+        console.log('[PUT /api/user] 요청:', { userId, selectedPersonalityId });
+        if (!userId) {
+            res.status(400).json({ error: 'userId가 필요합니다.' });
+            return;
+        }
+        const existingUser = yield supabaseService.getUserById(userId);
+        if (!existingUser) {
+            res.status(404).json({ error: '사용자를 찾을 수 없습니다.' });
+            return;
+        }
+        const updatedUser = yield supabaseService.updateUser(userId, {
+            selected_personality_id: selectedPersonalityId,
+        });
+        if (!updatedUser) {
+            res.status(500).json({ error: '사용자 정보 업데이트에 실패했습니다.' });
+            return;
+        }
+        console.log('[PUT /api/user] 응답:', updatedUser);
+        res.json(updatedUser);
+    }
+    catch (error) {
+        console.error('[PUT /api/user] 오류:', error);
+        res.status(500).json({ error: '서버 오류가 발생했습니다.' });
     }
 }));
 // AI 메시지 처리 함수
@@ -173,21 +159,23 @@ function handleSendMessage(data, res) {
             return;
         }
         console.log('🚀 handleSendMessage 시작:', { message, userId, personalityId });
-        console.log('🔑 GEMINI_API_KEY 존재 여부:', !!process.env.GEMINI_API_KEY);
         console.log('🔑 API 키 길이:', (_a = process.env.GEMINI_API_KEY) === null || _a === void 0 ? void 0 : _a.length);
         try {
             // 1. 사용자 메시지를 DB에 저장
             console.log('💾 사용자 메시지 DB 저장 시작...');
             // 사용자 메시지 저장
-            const userMessage = yield prisma_1.default.conversation.create({
-                data: {
-                    id: crypto_1.default.randomUUID(),
-                    userId,
-                    role: 'user',
-                    content: message,
-                    personalityId,
-                },
+            const userMessage = yield supabaseService.createConversation({
+                id: crypto_1.default.randomUUID(),
+                userId,
+                role: 'user',
+                content: message,
+                personalityId: personalityId || undefined,
             });
+            if (!userMessage) {
+                console.error('❌ 사용자 메시지 저장 실패');
+                res.status(500).json({ error: '메시지 저장에 실패했습니다.' });
+                return;
+            }
             console.log('✅ 사용자 메시지 저장 완료:', userMessage.id);
             // 2. AI 성격 설정 가져오기
             let personality;
@@ -199,22 +187,16 @@ function handleSendMessage(data, res) {
                 if (!personality) {
                     console.log('🔍 기본 AI에서 찾지 못함, 커스텀 AI 확인 중...');
                     try {
-                        const customAI = yield prisma_1.default.customAIPersonality.findFirst({
-                            where: {
-                                id: personalityId,
-                                userId: userId,
-                                isActive: true,
-                            },
-                        });
+                        const customAI = yield supabaseService.getCustomAIPersonalityById(personalityId, userId);
                         if (customAI) {
                             console.log('✅ 커스텀 AI 찾음:', customAI.name);
-                            const mbtiTypes = typeof customAI.mbtiTypes === 'string'
-                                ? JSON.parse(customAI.mbtiTypes)
-                                : customAI.mbtiTypes;
+                            const mbtiTypes = typeof customAI.mbti_types === 'string'
+                                ? JSON.parse(customAI.mbti_types)
+                                : customAI.mbti_types;
                             personality = {
                                 id: customAI.id,
                                 name: customAI.name,
-                                systemPrompt: customAI.systemPrompt,
+                                systemPrompt: customAI.system_prompt,
                                 iconType: `${mbtiTypes.energy}${mbtiTypes.information}${mbtiTypes.decisions}${mbtiTypes.lifestyle}`,
                             };
                         }
@@ -242,15 +224,7 @@ function handleSendMessage(data, res) {
             today.setHours(0, 0, 0, 0);
             console.log('🤖 Gemini AI 모델 초기화 중...');
             const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-            const conversationHistory = yield prisma_1.default.conversation.findMany({
-                where: {
-                    userId,
-                    personalityId,
-                    createdAt: { gte: today },
-                },
-                orderBy: { createdAt: 'asc' },
-                take: 20,
-            });
+            const conversationHistory = yield supabaseService.getConversationsByDate(userId, personalityId || null, today);
             console.log('📚 대화 기록 개수:', conversationHistory.length);
             // 대화 기록을 Gemini 형식으로 변환
             const chatHistory = conversationHistory.map((msg) => ({
@@ -286,15 +260,18 @@ function handleSendMessage(data, res) {
             // 6. AI 응답을 DB에 저장
             console.log('💾 AI 응답 DB 저장 중...');
             // AI 응답 저장
-            const aiResponse = yield prisma_1.default.conversation.create({
-                data: {
-                    id: crypto_1.default.randomUUID(),
-                    userId,
-                    role: 'ai',
-                    content: finalContent,
-                    personalityId,
-                },
+            const aiResponse = yield supabaseService.createConversation({
+                id: crypto_1.default.randomUUID(),
+                userId,
+                role: 'ai',
+                content: finalContent,
+                personalityId: personalityId || undefined,
             });
+            if (!aiResponse) {
+                console.error('❌ AI 응답 저장 실패');
+                res.status(500).json({ error: 'AI 응답 저장에 실패했습니다.' });
+                return;
+            }
             console.log('✅ AI 응답 저장 완료:', aiResponse.id);
             // 7. 클라이언트에 결과 반환
             console.log('📤 클라이언트에 응답 전송');
@@ -329,18 +306,64 @@ function getConversationHistory(data, res) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         try {
-            const conversations = yield prisma_1.default.conversation.findMany({
-                where: {
-                    userId,
-                    createdAt: { gte: today },
-                },
-                orderBy: { createdAt: 'asc' },
-            });
+            const conversations = yield supabaseService.getConversationsByDate(userId, null, today);
             res.json({ conversations, success: true });
         }
         catch (error) {
             console.error('Get conversation history error:', error);
             res.status(500).json({ error: 'Failed to retrieve conversation history' });
+        }
+    });
+}
+// 날짜별 대화 기록 조회 함수
+function getConversationHistoryByDate(data, res) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const { userId, personalityId, date } = data;
+        if (!userId || !personalityId || !date) {
+            res
+                .status(400)
+                .json({ error: 'userId, personalityId, and date are required' });
+            return;
+        }
+        try {
+            const targetDate = new Date(date);
+            const startOfDay = new Date(targetDate);
+            startOfDay.setHours(0, 0, 0, 0);
+            const endOfDay = new Date(targetDate);
+            endOfDay.setHours(23, 59, 59, 999);
+            const conversations = yield supabaseService.getConversationsByDate(userId, personalityId, startOfDay);
+            res.json({ conversations, success: true });
+        }
+        catch (error) {
+            console.error('Get conversation history by date error:', error);
+            res
+                .status(500)
+                .json({ error: 'Failed to retrieve conversation history by date' });
+        }
+    });
+}
+// 대화가 있는 날짜 목록 조회 함수
+function getConversationDates(data, res) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const { userId, personalityId } = data;
+        if (!userId || !personalityId) {
+            res.status(400).json({ error: 'userId and personalityId are required' });
+            return;
+        }
+        try {
+            const conversations = yield supabaseService.getConversationDates(userId, personalityId);
+            // 날짜별로 그룹화하여 중복 제거
+            const dateSet = new Set();
+            conversations.forEach((conv) => {
+                const dateString = conv.created_at.split('T')[0];
+                dateSet.add(dateString);
+            });
+            const dates = Array.from(dateSet).sort();
+            res.json({ dates, success: true });
+        }
+        catch (error) {
+            console.error('Get conversation dates error:', error);
+            res.status(500).json({ error: 'Failed to retrieve conversation dates' });
         }
     });
 }
@@ -355,12 +378,7 @@ function handleAnalyzeEmotion(data, res) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         try {
-            const conversations = yield prisma_1.default.conversation.findMany({
-                where: {
-                    userId,
-                    createdAt: { gte: today },
-                },
-            });
+            const conversations = yield supabaseService.getConversationsByDate(userId, null, today);
             if (conversations.length === 0) {
                 res.status(400).json({ error: 'No conversations to analyze' });
                 return;
@@ -406,14 +424,27 @@ app.listen(port, () => __awaiter(void 0, void 0, void 0, function* () {
     console.log(`[server]: Server is running at http://localhost:${port}`);
     // 데이터베이스 연결 테스트
     try {
-        const users = yield prisma_1.default.user.findMany();
+        const users = yield supabaseService.getUsers();
         console.log('📊 현재 등록된 사용자 수:', users.length);
     }
     catch (error) {
         console.error('❌ 데이터베이스 연결 오류:', error);
     }
-    console.log('📅 Daily emotion analysis scheduled via GitHub Actions (12:00 PM everyday)');
-    console.log('🔧 Manual trigger available at POST /api/run-daily-emotion-analysis');
+    // 매일 자정(00:00)에 일일 감정 분석 실행
+    node_cron_1.default.schedule('0 0 * * *', () => __awaiter(void 0, void 0, void 0, function* () {
+        console.log('🕛 자정 - 일일 감정 분석 시작...');
+        try {
+            yield (0, scheduler_1.scheduleDailyEmotionSummary)();
+            console.log('✅ 일일 감정 분석 완료');
+        }
+        catch (error) {
+            console.error('❌ 일일 감정 분석 실패:', error);
+        }
+    }), {
+        timezone: 'Asia/Seoul',
+    });
+    console.log('📅 일일 감정 분석 스케줄러 설정 완료 (매일 자정 실행)');
+    console.log('🔧 수동 실행 가능: POST /api/run-daily-emotion-analysis');
 }));
 // EmotionLog 조회 API
 app.get('/api/emotion-logs', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -432,18 +463,7 @@ app.get('/api/emotion-logs', (req, res) => __awaiter(void 0, void 0, void 0, fun
             : new Date().getMonth(); // month는 0부터 시작
         const startDate = new Date(targetYear, targetMonth, 1);
         const endDate = new Date(targetYear, targetMonth + 1, 0, 23, 59, 59, 999);
-        const emotionLogs = yield prisma_1.default.emotionLog.findMany({
-            where: {
-                userId: userId,
-                date: {
-                    gte: startDate,
-                    lte: endDate,
-                },
-            },
-            orderBy: {
-                date: 'asc',
-            },
-        });
+        const emotionLogs = yield supabaseService.getEmotionLogs(userId, startDate, endDate);
         res.status(200).json({ emotionLogs });
     }
     catch (error) {
@@ -462,12 +482,7 @@ app.get('/api/emotion-logs/:date', (req, res) => __awaiter(void 0, void 0, void 
         }
         const targetDate = new Date(date);
         targetDate.setHours(0, 0, 0, 0);
-        const emotionLog = yield prisma_1.default.emotionLog.findFirst({
-            where: {
-                userId: userId,
-                date: targetDate,
-            },
-        });
+        const emotionLog = yield supabaseService.getEmotionLogByDate(userId, targetDate);
         if (!emotionLog) {
             res.status(404).json({ error: 'EmotionLog not found for this date' });
             return;
@@ -487,18 +502,23 @@ app.get('/api/conversations/:userId/:date', (req, res) => __awaiter(void 0, void
         startDate.setHours(0, 0, 0, 0);
         const endDate = new Date(date);
         endDate.setHours(23, 59, 59, 999);
-        const conversations = yield prisma_1.default.conversation.findMany({
-            where: {
-                userId,
-                createdAt: {
-                    gte: startDate,
-                    lte: endDate,
-                },
-            },
-            orderBy: {
-                createdAt: 'asc',
-            },
-        });
+        const conversations = yield supabaseService.getConversationsByDate(userId, null, startDate);
+        res.status(200).json({ conversations, count: conversations.length });
+    }
+    catch (error) {
+        console.error('Error fetching conversations:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+}));
+// 날짜별 대화 기록 조회 (userId + personalityId + date)
+app.get('/api/conversations/:userId/:personalityId/:date', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { userId, personalityId, date } = req.params;
+        const startDate = new Date(date);
+        startDate.setHours(0, 0, 0, 0);
+        const endDate = new Date(date);
+        endDate.setHours(23, 59, 59, 999);
+        const conversations = yield supabaseService.getConversationsByDate(userId, personalityId, startDate);
         res.status(200).json({ conversations, count: conversations.length });
     }
     catch (error) {
@@ -516,18 +536,7 @@ app.post('/api/test-emotion-analysis', (req, res) => __awaiter(void 0, void 0, v
         startDate.setHours(0, 0, 0, 0);
         const endDate = new Date(date);
         endDate.setHours(23, 59, 59, 999);
-        const conversations = yield prisma_1.default.conversation.findMany({
-            where: {
-                userId,
-                createdAt: {
-                    gte: startDate,
-                    lte: endDate,
-                },
-            },
-            orderBy: {
-                createdAt: 'asc',
-            },
-        });
+        const conversations = yield supabaseService.getConversationsByDate(userId, null, startDate);
         if (conversations.length === 0) {
             res.status(404).json({ error: 'No conversations found for this date' });
             return;
@@ -542,36 +551,26 @@ app.post('/api/test-emotion-analysis', (req, res) => __awaiter(void 0, void 0, v
         const analysisResult = (0, emotion_service_1.simpleAnalyzeConversation)(conversationText);
         console.log('Analysis result:', analysisResult);
         // 기존 감정 로그가 있는지 확인
-        const existingLog = yield prisma_1.default.emotionLog.findFirst({
-            where: {
-                userId,
-                date: startDate,
-            },
-        });
+        const existingLog = yield supabaseService.getEmotionLogByDate(userId, startDate);
         let emotionLog;
         if (existingLog) {
             // 기존 로그 업데이트
-            emotionLog = yield prisma_1.default.emotionLog.update({
-                where: { id: existingLog.id },
-                data: {
-                    emotion: analysisResult.emotion,
-                    summary: (0, emotion_service_1.emotionToPercentage)(analysisResult.emotion),
-                },
+            emotionLog = yield supabaseService.updateEmotionLog(existingLog.id, {
+                emotion: analysisResult.emotion,
+                summary: (0, emotion_service_1.emotionToPercentage)(analysisResult.emotion),
             });
             console.log('Updated existing emotion log');
         }
         else {
             // 새 로그 생성
-            emotionLog = yield prisma_1.default.emotionLog.create({
-                data: {
-                    id: crypto_1.default.randomUUID(),
-                    userId,
-                    date: startDate,
-                    emotion: analysisResult.emotion,
-                    summary: (0, emotion_service_1.emotionToPercentage)(analysisResult.emotion),
-                    shortSummary: analysisResult.summary,
-                    characterName: (0, emotion_service_1.emotionToSvg)(analysisResult.emotion),
-                },
+            emotionLog = yield supabaseService.createEmotionLog({
+                id: crypto_1.default.randomUUID(),
+                userId,
+                date: startDate,
+                emotion: analysisResult.emotion,
+                summary: (0, emotion_service_1.emotionToPercentage)(analysisResult.emotion),
+                shortSummary: analysisResult.summary,
+                characterName: (0, emotion_service_1.emotionToSvg)(analysisResult.emotion),
             });
             console.log('Created new emotion log');
         }
@@ -614,7 +613,7 @@ app.get('/api/custom-ai', (req, res) => __awaiter(void 0, void 0, void 0, functi
             return;
         }
         console.log('🔍 커스텀 AI 조회 요청:', userId);
-        const customAIs = yield (0, custom_ai_service_1.getCustomAIs)(userId);
+        const customAIs = yield supabaseService.getCustomAIPersonalitiesByUserId(userId);
         res.json(customAIs);
     }
     catch (error) {
@@ -625,111 +624,31 @@ app.get('/api/custom-ai', (req, res) => __awaiter(void 0, void 0, void 0, functi
 app.post('/api/custom-ai', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { userId, name, description, mbtiTypes, systemPrompt } = req.body;
-        if (!userId || !name || !description || !mbtiTypes || !systemPrompt) {
-            res.status(400).json({ error: '필수 필드가 누락되었습니다' });
-            return;
-        }
-        const customAI = yield (0, custom_ai_service_1.createCustomAI)({
+        console.log('[커스텀 AI 생성] 받은 데이터:', {
             userId,
             name,
             description,
             mbtiTypes,
+            mbtiTypesType: typeof mbtiTypes,
+            systemPrompt: (systemPrompt === null || systemPrompt === void 0 ? void 0 : systemPrompt.substring(0, 100)) + '...',
+        });
+        if (!userId || !name || !description || !mbtiTypes || !systemPrompt) {
+            res.status(400).json({ error: '필수 필드가 누락되었습니다' });
+            return;
+        }
+        const customAI = yield supabaseService.createCustomAIPersonality({
+            id: crypto_1.default.randomUUID(),
+            userId,
+            name,
+            mbtiTypes,
             systemPrompt,
+            description,
         });
         res.json(customAI);
     }
     catch (error) {
         console.error('커스텀 AI 생성 오류:', error);
         res.status(500).json({ error: '서버 오류가 발생했습니다' });
-    }
-}));
-// 사용자 정보 업데이트 API
-app.put('/api/user', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    try {
-        const { userId, selectedPersonalityId } = req.body;
-        console.log('사용자 정보 업데이트 요청:', {
-            userId,
-            selectedPersonalityId,
-        });
-        if (!userId) {
-            res.status(400).json({ error: 'userId가 필요합니다.' });
-            return;
-        }
-        // 사용자 존재 여부 확인
-        const existingUser = yield prisma_1.default.user.findUnique({
-            where: { id: userId },
-        });
-        if (!existingUser) {
-            res.status(404).json({ error: '사용자를 찾을 수 없습니다.' });
-            return;
-        }
-        // selectedPersonalityId 유효성 검증
-        if (selectedPersonalityId) {
-            // 기본 AI 확인
-            const isDefaultAI = ai_personalities_1.AI_PERSONALITIES.some((ai) => ai.id === selectedPersonalityId);
-            if (!isDefaultAI) {
-                // 커스텀 AI 확인
-                const customAI = yield prisma_1.default.customAIPersonality.findFirst({
-                    where: {
-                        id: selectedPersonalityId,
-                        userId: userId,
-                        isActive: true,
-                    },
-                });
-                if (!customAI) {
-                    res.status(400).json({ error: '유효하지 않은 AI 성격입니다.' });
-                    return;
-                }
-            }
-        }
-        const updatedUser = yield prisma_1.default.user.update({
-            where: { id: userId },
-            data: { selectedPersonalityId },
-            select: {
-                id: true,
-                userName: true,
-                email: true,
-                image: true,
-                selectedPersonalityId: true,
-            },
-        });
-        console.log('사용자 정보 업데이트 완료:', updatedUser);
-        res.json(updatedUser);
-    }
-    catch (error) {
-        console.error('사용자 정보 업데이트 오류:', error);
-        res.status(500).json({ error: '서버 오류가 발생했습니다.' });
-    }
-}));
-// 사용자 정보 조회 API
-app.get('/api/user', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    try {
-        const userId = req.query.userId;
-        console.log('사용자 정보 조회 요청:', userId);
-        if (!userId) {
-            res.status(400).json({ error: 'userId가 필요합니다.' });
-            return;
-        }
-        const user = yield prisma_1.default.user.findUnique({
-            where: { id: userId },
-            select: {
-                id: true,
-                userName: true,
-                email: true,
-                image: true,
-                selectedPersonalityId: true,
-            },
-        });
-        if (!user) {
-            res.status(404).json({ error: '사용자를 찾을 수 없습니다.' });
-            return;
-        }
-        console.log('사용자 정보 조회 완료:', user);
-        res.json(user);
-    }
-    catch (error) {
-        console.error('사용자 정보 조회 오류:', error);
-        res.status(500).json({ error: '서버 오류가 발생했습니다.' });
     }
 }));
 // 로그인 API 엔드포인트
@@ -741,35 +660,32 @@ app.post('/api/auth/login', (req, res) => __awaiter(void 0, void 0, void 0, func
             return;
         }
         // 기존 사용자 찾기 또는 새로운 사용자 생성
-        let user = yield prisma_1.default.user.findFirst({
-            where: { kakaoId: kakaoId },
-        });
+        let user = yield supabaseService.getUserByKakaoId(kakaoId);
         if (!user) {
             // 새로운 사용자 생성
-            user = yield prisma_1.default.user.create({
-                data: {
-                    id: crypto_1.default.randomUUID(),
-                    kakaoId,
-                    email,
-                    userName,
-                    image,
-                },
+            user = yield supabaseService.createUser({
+                id: crypto_1.default.randomUUID(),
+                kakaoId,
+                email,
+                userName: userName,
+                image,
             });
         }
         else {
             // 기존 사용자 정보 업데이트
-            user = yield prisma_1.default.user.update({
-                where: { id: user.id },
-                data: {
-                    email,
-                    userName,
-                    image,
-                },
+            user = yield supabaseService.updateUser(user.id, {
+                email,
+                user_name: userName,
+                image,
             });
+        }
+        if (!user) {
+            res.status(500).json({ error: '사용자 생성/업데이트에 실패했습니다.' });
+            return;
         }
         res.json({
             userId: user.id,
-            name: user.userName,
+            name: user.user_name,
             email: user.email,
             image: user.image,
         });

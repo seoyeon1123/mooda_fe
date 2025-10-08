@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import {
-  getPersonalityById,
   getPersonalityByIdAsync,
   type AIPersonality,
 } from '@/lib/ai-personalities';
@@ -22,6 +21,7 @@ export default function ChatTab() {
   const selectedPersonalityId = useUserStore(
     (state) => state.selectedPersonalityId
   );
+  const isHydrated = useUserStore((state) => state.isHydrated);
   const ackPersonalityChange = useUserStore(
     (state) => state.ackPersonalityChange
   );
@@ -33,17 +33,33 @@ export default function ChatTab() {
   const [lastMidnight, setLastMidnight] = useState<Date>(() => new Date());
   const [currentPersonality, setCurrentPersonality] = useState<
     AIPersonality | undefined
-  >(getPersonalityById(selectedPersonalityId));
+  >();
   const [showCalendar, setShowCalendar] = useState(false);
 
-  // 성격 로드 로직
+  // 디버깅: 하이드레이션 상태와 성격 ID 변경 감지
   useEffect(() => {
+    console.log(
+      '🔍 하이드레이션 상태:',
+      isHydrated,
+      '선택된 성격 ID:',
+      selectedPersonalityId
+    );
+  }, [isHydrated, selectedPersonalityId]);
+
+  // 성격 로드 로직 - 하이드레이션 완료 후에만 실행
+  useEffect(() => {
+    if (!isHydrated) {
+      console.log('⏳ 하이드레이션 대기 중...');
+      return;
+    }
+    console.log('✅ 하이드레이션 완료, 성격 로딩 시작:', selectedPersonalityId);
     const loadPersonality = async () => {
       const personality = await getPersonalityByIdAsync(selectedPersonalityId);
+      console.log('📍 로드된 성격:', personality?.name);
       setCurrentPersonality(personality);
     };
     loadPersonality();
-  }, [selectedPersonalityId]);
+  }, [isHydrated, selectedPersonalityId]);
 
   // 날짜별 대화 로딩 함수 (REST API 연동)
   const handleDateSelect = async (date: Date) => {
@@ -121,8 +137,9 @@ export default function ChatTab() {
     }
   };
 
-  // 채팅 초기화 로직
+  // 채팅 초기화 로직 - 하이드레이션 완료 후에만 실행
   useEffect(() => {
+    if (!isHydrated) return;
     if (!currentPersonality || !session?.user?.id) {
       return;
     }
@@ -174,6 +191,7 @@ export default function ChatTab() {
     selectedPersonalityId,
     currentPersonality,
     ackPersonalityChange,
+    isHydrated,
   ]);
 
   const handleSendMessage = async (messageContent: string) => {
@@ -200,11 +218,41 @@ export default function ChatTab() {
       );
 
       if (response && response.success) {
+        console.log('📥 백엔드 응답 데이터:', response);
+        console.log('📥 userMessage:', response.userMessage);
+        console.log('📥 aiResponse:', response.aiResponse);
+
         setMessages((prev) => {
           const filtered = prev.filter(
             (msg) => msg.id !== optimisticUserMessage.id
           );
-          return [...filtered, response.userMessage, response.aiResponse];
+
+          const toMessage = (
+            src: {
+              id?: string;
+              content?: string;
+              created_at?: string;
+              createdAt?: string | Date;
+            },
+            role: 'user' | 'ai'
+          ): Message => {
+            console.log('🔄 변환 중인 메시지 src:', src);
+            const message = {
+              id: src.id ?? String(Date.now()),
+              role,
+              content: src.content ?? '',
+              createdAt: new Date(
+                src.created_at ?? src.createdAt ?? Date.now()
+              ),
+            };
+            console.log('🔄 변환된 메시지:', message);
+            return message;
+          };
+
+          const userMsg = toMessage(response.userMessage as Message, 'user');
+          const aiMsg = toMessage(response.aiResponse as Message, 'ai');
+
+          return [...filtered, userMsg, aiMsg];
         });
       } else {
         setMessages((prev) =>

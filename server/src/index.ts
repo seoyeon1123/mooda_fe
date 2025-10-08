@@ -1,19 +1,24 @@
-import express, { Express, Request, Response, NextFunction } from 'express';
 import dotenv from 'dotenv';
+dotenv.config();
+
+// 그 다음에 다른 모듈들 import
+import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import cron from 'node-cron';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+
 import crypto from 'crypto';
-import { SupabaseService } from './lib/supabase-service.js';
-import { scheduleDailyEmotionSummary } from './lib/scheduler';
+import { SupabaseService } from './lib/supabase-service';
 import {
-  simpleAnalyzeConversation,
+  scheduleDailyEmotionSummary,
+  testTodayEmotionSummary,
+} from './lib/scheduler';
+import {
   emotionToSvg,
+  simpleAnalyzeConversation,
   emotionToPercentage,
+  formatDateForDB,
 } from './lib/emotion-service';
 import { AI_PERSONALITIES, AIPersonality } from './lib/ai-personalities';
-
-dotenv.config();
 
 // Supabase 서비스 초기화
 const supabaseService = new SupabaseService();
@@ -23,8 +28,74 @@ const supabaseService = new SupabaseService();
 const app: Express = express();
 const port = process.env.PORT || 8080;
 
+// Gemini REST 폴백 헬퍼 (ListModels로 사용 가능 모델/버전 자동 선택)
+async function generateWithGemini(contents: any[]): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY is not set');
+
+  type Candidate = { version: 'v1' | 'v1beta'; model: string };
+
+  async function listModels(version: 'v1' | 'v1beta'): Promise<string[]> {
+    const url = `https://generativelanguage.googleapis.com/${version}/models?key=${apiKey}`;
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    const data = await res.json();
+    const models: Array<{ name: string; supportedGenerationMethods?: string[] }> = data.models || [];
+    return models
+      .filter((m) => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
+      .map((m) => m.name.replace('models/', ''));
+  }
+
+  // 1) 실제 지원 모델 조회
+  const [v1betaList, v1List] = await Promise.all([listModels('v1beta'), listModels('v1')]);
+
+  // 2) 선호 순서에 따라 정렬된 후보 생성
+  function sortByPreference(list: string[]): string[] {
+    const score = (name: string) =>
+      name.includes('1.5-flash') ? 3 : name.includes('1.5-pro') ? 2 : name.includes('1.0-pro') ? 1 : 0;
+    return [...new Set(list)].sort((a, b) => score(b) - score(a));
+  }
+
+  const v1betaSorted = sortByPreference(v1betaList);
+  const v1Sorted = sortByPreference(v1List);
+
+  const candidates: Candidate[] = [
+    ...v1betaSorted.map((m) => ({ version: 'v1beta' as const, model: m })),
+    ...v1Sorted.map((m) => ({ version: 'v1' as const, model: m })),
+  ];
+
+  // 3) 후보가 하나도 없으면 보수적 폴백 추가
+  if (candidates.length === 0) {
+    candidates.push({ version: 'v1', model: 'gemini-1.0-pro' });
+  }
+
+  let lastError: any = null;
+  for (const c of candidates) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/${c.version}/models/${c.model}:generateContent?key=${apiKey}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents }),
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`${res.status} ${errText}`);
+      }
+      const json = await res.json();
+      const text = json.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+      if (text) return text;
+    } catch (e) {
+      lastError = e;
+      continue;
+    }
+  }
+  throw new Error(`Gemini REST fallback failed: ${lastError instanceof Error ? lastError.message : String(lastError)}`);
+}
+
 // Gemini AI 초기화
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+// SDK 제거: REST v1 호출 사용으로 전환
+// const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 // 타입 정의
 interface SendMessageData {
@@ -170,6 +241,50 @@ app.get('/api/user', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
+// 사용자 생성 API
+app.post('/api/user', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { userId, userName, email, image, kakaoId } = req.body as {
+      userId: string;
+      userName?: string;
+      email?: string;
+      image?: string;
+      kakaoId?: string;
+    };
+
+    console.log('[POST /api/user] 요청:', { userId, userName, email, kakaoId });
+
+    if (!userId) {
+      res.status(400).json({ error: 'userId가 필요합니다.' });
+      return;
+    }
+
+    const existing = await supabaseService.getUserById(userId);
+    if (existing) {
+      res.status(200).json(existing);
+      return;
+    }
+
+    const created = await supabaseService.createUser({
+      id: userId,
+      kakaoId: kakaoId || userId,
+      userName: userName || '사용자',
+      image,
+      email,
+    });
+
+    if (!created) {
+      res.status(500).json({ error: '사용자 생성에 실패했습니다.' });
+      return;
+    }
+
+    res.status(201).json(created);
+  } catch (error) {
+    console.error('[POST /api/user] 오류:', error);
+    res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+  }
+});
+
 // 사용자 정보 업데이트 API
 app.put('/api/user', async (req: Request, res: Response): Promise<void> => {
   try {
@@ -295,7 +410,8 @@ async function handleSendMessage(data: SendMessageData, res: Response) {
     today.setHours(0, 0, 0, 0);
 
     console.log('🤖 Gemini AI 모델 초기화 중...');
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    // SDK 대신 REST v1 호출 사용으로 전환
+    // const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
 
     const conversationHistory = await supabaseService.getConversationsByDate(
       userId,
@@ -304,32 +420,34 @@ async function handleSendMessage(data: SendMessageData, res: Response) {
     );
     console.log('📚 대화 기록 개수:', conversationHistory.length);
 
-    // 대화 기록을 Gemini 형식으로 변환
-    const chatHistory = conversationHistory.map((msg) => ({
-      role: msg.role === 'user' ? 'user' : 'model',
-      parts: [{ text: msg.content }],
-    }));
-
-    // Gemini API 요구사항: 첫 번째 메시지는 반드시 'user' 역할이어야 함
-    // 시스템 프롬프트를 사용자 메시지에 포함시킴
-    console.log('💬 채팅 세션 시작...');
-    const chat = model.startChat({
-      history: chatHistory,
-      generationConfig: {
-        maxOutputTokens: 150,
-        temperature: 0.8,
-        topP: 0.9,
-        topK: 40,
-      },
-    });
+    // (SDK 제거) REST 호출로 직접 처리합니다
 
     // 시스템 프롬프트와 사용자 메시지를 결합
-    const characterPrompt = `${personality.systemPrompt}\n\n사용자: ${message}`;
-    console.log('📤 AI에게 메시지 전송 중...');
+    const characterPrompt = `${personality.systemPrompt}
 
-    const result = await chat.sendMessage(characterPrompt);
-    const response = result.response;
-    const aiContent = response.text();
+주의사항:
+1. 사용자의 메시지를 주의 깊게 읽고 맥락을 파악하세요.
+2. 이전 대화 내용을 고려하여 일관성 있게 대응하세요.
+3. 사용자가 짧게 답변하더라도 의도를 파악하려 노력하세요.
+4. 대화가 자연스럽게 이어지도록 하되, 너무 장황하게 답변하지 마세요.
+5. 사용자가 불편함을 표현하면 즉시 대화 방향을 전환하세요.
+
+사용자 메시지: ${message}`;
+
+    console.log('📤 AI에게 메시지 전송 중 (REST fallback)...');
+
+    let aiContent = '';
+    try {
+      aiContent = await generateWithGemini([
+        { role: 'user', parts: [{ text: characterPrompt }] }
+      ]);
+    } catch (e) {
+      console.error('⚠️ Gemini 실패, 로컬 폴백 사용:', e);
+      // 간단 폴백: 사용자 메시지를 요약해 짧게 공감 응답
+      const lastLine = message.slice(0, 120);
+      aiContent = `음, ${lastLine} 라고 말해준 거지? 내가 곁에서 계속 들어줄게.`;
+    }
+
     console.log('📥 AI 응답 받음:', aiContent.substring(0, 50) + '...');
 
     // 5. AI 응답 길이 제한
@@ -514,7 +632,8 @@ async function handleAnalyzeEmotion(data: AnalyzeEmotionData, res: Response) {
       .map((msg) => `${msg.role}: ${msg.content}`)
       .join('\n');
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    // SDK 대신 REST v1 호출 사용으로 전환
+    // const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
     const prompt = `Analyze the user's emotional state from the following conversation and classify it into one of these 6 categories: VeryHappy, Happy, Neutral, Sad, VerySad, Angry.
     
     Respond in the following JSON format:
@@ -529,12 +648,19 @@ async function handleAnalyzeEmotion(data: AnalyzeEmotionData, res: Response) {
     --- End ---
     `;
 
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const jsonString = response
-      .text()
-      .replace(/```json|```/g, '')
-      .trim();
+    // REST fallback 사용 + 실패 시 간단 분석으로 폴백
+    let text = '';
+    try {
+      text = await generateWithGemini([
+        { role: 'user', parts: [{ text: prompt }] }
+      ]);
+    } catch (e) {
+      console.error('⚠️ Gemini 실패, simpleAnalyzeConversation 폴백:', e);
+      const simple = simpleAnalyzeConversation(conversationText);
+      return res.json({ ...simple, success: true });
+    }
+
+    const jsonString = text.replace(/```json|```/g, '').trim();
     const analysisResult = JSON.parse(jsonString);
 
     res.json({ ...analysisResult, success: true });
@@ -764,7 +890,7 @@ app.post(
         emotionLog = await supabaseService.createEmotionLog({
           id: crypto.randomUUID(),
           userId,
-          date: startDate,
+          date: formatDateForDB(startDate), // Date 객체를 YYYY-MM-DD 문자열로 변환
           emotion: analysisResult.emotion,
           summary: emotionToPercentage(analysisResult.emotion),
           shortSummary: analysisResult.summary,
@@ -790,12 +916,27 @@ app.post(
   '/api/run-daily-emotion-analysis',
   async (req: Request, res: Response): Promise<void> => {
     try {
-      console.log('🔧 Manual daily emotion analysis triggered');
-      await scheduleDailyEmotionSummary();
-      res.status(200).json({
-        success: true,
-        message: 'Daily emotion analysis completed successfully',
-      });
+      const testToday = req.body?.testToday;
+
+      console.log('📥 Request body:', JSON.stringify(req.body));
+      console.log('🔍 testToday flag:', testToday, typeof testToday);
+
+      // testToday가 true일 때만 오늘 날짜로 실행
+      if (testToday && testToday === true) {
+        console.log('🔧 Manual daily emotion analysis triggered (TODAY)');
+        await testTodayEmotionSummary();
+        res.status(200).json({
+          success: true,
+          message: 'Today emotion analysis completed successfully',
+        });
+      } else {
+        console.log('🔧 Manual daily emotion analysis triggered (YESTERDAY)');
+        await scheduleDailyEmotionSummary();
+        res.status(200).json({
+          success: true,
+          message: 'Daily emotion analysis completed successfully',
+        });
+      }
     } catch (error) {
       console.error('Manual daily emotion analysis failed:', error);
       res.status(500).json({

@@ -13,30 +13,39 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.emotionToPercentage = exports.emotionToSvg = void 0;
+exports.formatDateForDB = formatDateForDB;
 exports.getConversations = getConversations;
 exports.saveEmotionLog = saveEmotionLog;
 exports.upsertEmotionLog = upsertEmotionLog;
 exports.summarizeAndAnalyzeWithGemini = summarizeAndAnalyzeWithGemini;
 exports.simpleAnalyzeConversation = simpleAnalyzeConversation;
-const prisma_1 = __importDefault(require("./prisma"));
+const supabase_1 = require("./supabase");
+const crypto_1 = __importDefault(require("crypto"));
+// 날짜를 YYYY-MM-DD 형식으로 변환
+function formatDateForDB(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
 function getConversations(userId, date) {
     return __awaiter(this, void 0, void 0, function* () {
         const start = new Date(date);
         start.setHours(0, 0, 0, 0);
         const end = new Date(date);
         end.setHours(23, 59, 59, 999);
-        return prisma_1.default.conversation.findMany({
-            where: {
-                userId,
-                createdAt: {
-                    gte: start,
-                    lte: end,
-                },
-            },
-            orderBy: {
-                createdAt: 'asc',
-            },
-        });
+        const { data, error } = yield supabase_1.supabase
+            .from('conversations')
+            .select('*')
+            .eq('user_id', userId)
+            .gte('created_at', start.toISOString())
+            .lte('created_at', end.toISOString())
+            .order('created_at', { ascending: true });
+        if (error) {
+            console.error('Error fetching conversations:', error);
+            return [];
+        }
+        return data || [];
     });
 }
 // Gemini 감정 결과를 svg 파일명으로 매핑
@@ -83,53 +92,69 @@ const emotionToPercentage = (emotion) => {
 exports.emotionToPercentage = emotionToPercentage;
 function saveEmotionLog(userId, date, summary, emotion) {
     return __awaiter(this, void 0, void 0, function* () {
-        return prisma_1.default.emotionLog.create({
-            data: {
-                id: crypto.randomUUID(),
-                userId,
-                date,
-                emotion,
-                summary: (0, exports.emotionToPercentage)(emotion),
-                shortSummary: summary,
-                characterName: (0, exports.emotionToSvg)(emotion),
-            },
+        return supabase_1.supabase.from('emotion_logs').insert({
+            id: crypto_1.default.randomUUID(),
+            user_id: userId,
+            date: date.toISOString(),
+            emotion,
+            summary: (0, exports.emotionToPercentage)(emotion),
+            short_summary: summary,
+            character_name: (0, exports.emotionToSvg)(emotion),
         });
     });
 }
 function upsertEmotionLog(userId, date, summary, emotion) {
     return __awaiter(this, void 0, void 0, function* () {
-        // 기존 EmotionLog 확인
-        const existing = yield prisma_1.default.emotionLog.findFirst({
-            where: {
-                userId,
-                date,
-            },
+        const dateStr = formatDateForDB(date);
+        console.log('🔍 upsertEmotionLog 호출:', {
+            userId,
+            dateStr,
+            summary,
+            emotion,
         });
-        if (existing) {
+        // 기존 EmotionLog 확인
+        const { data: existing, error } = yield supabase_1.supabase
+            .from('emotion_logs')
+            .select('*')
+            .eq('user_id', userId)
+            .eq('date', dateStr);
+        console.log('🔍 기존 로그 확인 결과:', { existing, error });
+        if (error) {
+            console.error('Error checking existing emotion log:', error);
+            return null;
+        }
+        if (existing && existing.length > 0) {
+            console.log('📝 기존 로그 업데이트 중...');
             // 업데이트
-            return prisma_1.default.emotionLog.update({
-                where: { id: existing.id },
-                data: {
-                    summary: (0, exports.emotionToPercentage)(emotion), // 감정 퍼센트
-                    emotion,
-                    shortSummary: summary, // 실제 요약 내용
-                    characterName: (0, exports.emotionToSvg)(emotion), // 이미지 경로
-                },
-            });
+            const result = yield supabase_1.supabase
+                .from('emotion_logs')
+                .update({
+                summary: (0, exports.emotionToPercentage)(emotion), // 감정 퍼센트
+                emotion,
+                short_summary: summary, // 실제 요약 내용
+                character_name: (0, exports.emotionToSvg)(emotion), // 이미지 경로
+            })
+                .eq('id', existing[0].id)
+                .select();
+            console.log('📝 업데이트 결과:', result);
+            return result;
         }
         else {
+            console.log('✨ 새 로그 생성 중...');
             // 생성
-            return prisma_1.default.emotionLog.create({
-                data: {
-                    id: crypto.randomUUID(),
-                    userId,
-                    date,
-                    emotion,
-                    summary: (0, exports.emotionToPercentage)(emotion), // 감정 퍼센트
-                    shortSummary: summary, // 실제 요약 내용
-                    characterName: (0, exports.emotionToSvg)(emotion), // 이미지 경로
-                },
-            });
+            const newLog = {
+                id: crypto_1.default.randomUUID(),
+                user_id: userId,
+                date: dateStr,
+                emotion,
+                summary: (0, exports.emotionToPercentage)(emotion), // 감정 퍼센트
+                short_summary: summary, // 실제 요약 내용
+                character_name: (0, exports.emotionToSvg)(emotion), // 이미지 경로
+            };
+            console.log('✨ 생성할 데이터:', newLog);
+            const result = yield supabase_1.supabase.from('emotion_logs').insert(newLog).select();
+            console.log('✨ 생성 결과:', result);
+            return result;
         }
     });
 }
@@ -173,7 +198,7 @@ ${messages.join('\n')}
             console.log('🔍 Gemini API 호출 시작...');
             console.log('📝 대화 메시지 수:', messages.length);
             console.log('🔑 API Key 앞 10자:', ((_a = process.env.GEMINI_API_KEY) === null || _a === void 0 ? void 0 : _a.substring(0, 10)) + '...');
-            const response = yield fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+            const response = yield fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -221,83 +246,67 @@ ${messages.join('\n')}
 }
 // 개선된 간단한 감정 분석 함수
 function simpleAnalyzeConversation(conversationText) {
-    var _a;
     console.log('🔍 Fallback 분석 시작...');
-    const lowerText = conversationText.toLowerCase();
-    let emotion = 'Neutral';
-    let emotionScore = 0;
     // 감정 키워드 점수 계산
     const emotionKeywords = {
-        VeryHappy: ['완전', '너무좋', '최고', '대박', '신나', '환상적', '완벽'],
-        Happy: ['좋', '기쁘', '행복', '즐거', '만족', '웃', '기분좋', '다행'],
-        Neutral: ['그냥', '보통', '평범', '괜찮', '무난'],
+        VeryHappy: [
+            '완전',
+            '너무 좋',
+            '최고',
+            '대박',
+            '신나',
+            '환상적',
+            '완벽',
+            '행복한 시간',
+        ],
+        Happy: [
+            '좋',
+            '기쁘',
+            '행복',
+            '즐겁',
+            '만족',
+            '웃',
+            '기분 좋',
+            '다행',
+            '맛있',
+        ],
+        Neutral: ['그냥', '보통', '평범', '괜찮', '무난', '음'],
         Sad: ['슬프', '우울', '힘들', '아프', '속상', '실망', '걱정'],
-        VerySad: ['너무슬', '절망', '포기', '죽고싶', '최악'],
-        Angry: ['짜증', '화', '빡', '싫', '답답', '스트레스', '열받', '미치'],
+        VerySad: ['너무 슬프', '절망', '포기', '죽고 싶', '최악'],
+        Angry: ['짜증', '화나', '빡치', '싫어', '답답', '스트레스', '열받', '미치'],
     };
     // 각 감정별 점수 계산
     const scores = {};
-    for (const [emotionType, keywords] of Object.entries(emotionKeywords)) {
-        scores[emotionType] = 0;
-        keywords.forEach((keyword) => {
-            const matches = (lowerText.match(new RegExp(keyword, 'g')) || []).length;
-            scores[emotionType] += matches;
-        });
-    }
-    // 가장 높은 점수의 감정 선택
-    const maxEmotion = Object.keys(scores).reduce((a, b) => scores[a] > scores[b] ? a : b);
-    if (scores[maxEmotion] > 0) {
-        emotion = maxEmotion;
-        emotionScore = scores[maxEmotion];
-    }
-    // 대화 내용 정리
-    const messages = conversationText
-        .split('\n')
-        .filter((line) => line.trim().length > 0);
-    const userMessages = messages.filter((line) => !line.toLowerCase().includes('ai') &&
-        !line.toLowerCase().includes('assistant'));
-    // 스마트 요약 생성
-    let summary = '';
-    let highlight = '';
-    if (lowerText.includes('비') &&
-        (lowerText.includes('기분') || lowerText.includes('우울'))) {
-        summary = '비 오는 날씨로 인해 우울한 기분을 느낀 하루';
-        highlight = '비 때문에 기분이 안 좋음';
-    }
-    else if (lowerText.includes('회사') ||
-        lowerText.includes('업무') ||
-        lowerText.includes('일')) {
-        if (emotion === 'Angry' || emotion === 'Sad') {
-            summary = '회사 업무로 인한 스트레스와 피로감을 느낀 하루';
-            highlight = '업무 스트레스';
+    let maxScore = 0;
+    let dominantEmotion = 'Neutral';
+    const matchedKeywords = [];
+    for (const [emotion, keywords] of Object.entries(emotionKeywords)) {
+        let score = 0;
+        for (const keyword of keywords) {
+            if (conversationText.includes(keyword)) {
+                score += 1;
+                matchedKeywords.push(keyword);
+            }
         }
-        else {
-            summary = '회사 일상과 업무에 대한 대화를 나눈 하루';
-            highlight = '일상적인 업무 대화';
+        scores[emotion] = score;
+        if (score > maxScore) {
+            maxScore = score;
+            dominantEmotion = emotion;
         }
     }
-    else if (lowerText.includes('친구') || lowerText.includes('가족')) {
-        summary = '주변 사람들과의 관계에 대해 이야기한 하루';
-        highlight = '인간관계 대화';
-    }
-    else if (lowerText.includes('음식') || lowerText.includes('먹')) {
-        summary = '음식과 식사에 관한 대화를 나눈 하루';
-        highlight = '음식 관련 대화';
-    }
-    else {
-        // 일반적인 요약
-        const meaningfulMessages = userMessages
-            .slice(0, 3)
-            .join(' ')
-            .substring(0, 80);
-        summary =
-            meaningfulMessages + (meaningfulMessages.length >= 80 ? '...' : '');
-        highlight = ((_a = userMessages[0]) === null || _a === void 0 ? void 0 : _a.substring(0, 30)) || '일상 대화';
-    }
-    console.log(`✅ 분석 완료 - 감정: ${emotion} (점수: ${emotionScore}), 요약: ${summary.substring(0, 30)}...`);
+    console.log('📊 감정 점수:', scores);
+    console.log('🎯 매칭된 키워드:', matchedKeywords);
+    // 대화 내용에서 주요 문장 추출
+    const lines = conversationText.split('\n');
+    const userMessages = lines
+        .filter((line) => line.startsWith('user:'))
+        .map((line) => line.replace('user:', '').trim());
+    const lastUserMessage = userMessages[userMessages.length - 1] || '';
+    const summary = lastUserMessage || '하루 일상을 보낸 평범한 날';
+    console.log('✅ 분석 완료 - 감정:', dominantEmotion, '(점수:', maxScore, '), 요약:', summary);
     return {
-        summary: summary || '다양한 주제로 대화를 나눈 하루',
-        emotion,
-        highlight: highlight || '일상 대화',
+        summary,
+        emotion: dominantEmotion,
+        highlight: matchedKeywords.join(', '),
     };
 }

@@ -14,7 +14,7 @@ export class SupabaseService {
       .from('users')
       .select('*')
       .eq('id', id)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('Error fetching user:', error);
@@ -323,13 +323,16 @@ export class SupabaseService {
   async createEmotionLog(emotionLogData: {
     id: string;
     userId: string;
-    date: Date;
+    date: Date | string; // Date 또는 string 타입 허용
     summary: string;
     emotion: string;
     characterName?: string;
     shortSummary?: string;
   }): Promise<EmotionLog | null> {
-    const dateString = emotionLogData.date.toISOString().split('T')[0];
+    const dateString =
+      typeof emotionLogData.date === 'string'
+        ? emotionLogData.date
+        : emotionLogData.date.toISOString().split('T')[0];
 
     const { data, error } = await supabase
       .from('emotion_logs')

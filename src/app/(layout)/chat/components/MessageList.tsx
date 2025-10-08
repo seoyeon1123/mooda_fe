@@ -19,9 +19,12 @@ export default function MessageList({ messages, isLoading }: MessageListProps) {
     scrollToBottom();
   }, [messages]);
 
-  // 시간 포맷팅 함수
-  const formatTime = (date: Date) => {
-    return new Date(date).toLocaleTimeString('ko-KR', {
+  // 시간 포맷팅 함수 (유연/안전)
+  const formatTime = (value: Date | string | number | undefined | null) => {
+    if (!value) return '';
+    const date = value instanceof Date ? value : new Date(value);
+    if (isNaN(date.getTime())) return '';
+    return date.toLocaleTimeString('ko-KR', {
       hour: '2-digit',
       minute: '2-digit',
       hour12: true,

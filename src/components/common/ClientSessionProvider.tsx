@@ -8,6 +8,7 @@ function StoreHydrator({ children }: { children: ReactNode }) {
   const { data: session } = useSession();
   const setUser = useUserStore((state) => state.setUser);
   const user = useUserStore((state) => state.user);
+  const loadUserData = useUserStore((state) => state.loadUserData);
 
   useEffect(() => {
     if (
@@ -56,12 +57,15 @@ function StoreHydrator({ children }: { children: ReactNode }) {
       sendUserToServer();
 
       setUser({
-        id: sessionUser.kakaoId as string,
+        id: (sessionUser.id as string) || (sessionUser.kakaoId as string),
         name: sessionUser.name || '',
         image: sessionUser.image || '',
       });
+
+      // 서버의 사용자 설정(선택 성격 포함) 불러오기
+      loadUserData();
     }
-  }, [session, user, setUser]);
+  }, [session, user, setUser, loadUserData]);
 
   return <>{children}</>;
 }

@@ -19,7 +19,7 @@ class SupabaseService {
                 .from('users')
                 .select('*')
                 .eq('id', id)
-                .single();
+                .maybeSingle();
             if (error) {
                 console.error('Error fetching user:', error);
                 return null;
@@ -262,7 +262,9 @@ class SupabaseService {
     }
     createEmotionLog(emotionLogData) {
         return __awaiter(this, void 0, void 0, function* () {
-            const dateString = emotionLogData.date.toISOString().split('T')[0];
+            const dateString = typeof emotionLogData.date === 'string'
+                ? emotionLogData.date
+                : emotionLogData.date.toISOString().split('T')[0];
             const { data, error } = yield supabase_1.supabase
                 .from('emotion_logs')
                 .insert({

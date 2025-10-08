@@ -2,7 +2,7 @@ export interface EmotionData {
   date: string;
   emotion: 'happy' | 'sad' | 'angry' | 'anxious' | 'calm' | 'excited';
   summary: string;
-  conversationSummary: string;
+  short_summary?: string;
   characterName?: string;
 }
 

@@ -3,7 +3,6 @@ import Image from 'next/image';
 import {
   EmotionData,
   emotionColors,
-  emotionIcons,
   emotionLabels,
   monthNames,
 } from '@/lib/calendar-types';
@@ -105,7 +104,29 @@ export default function EmotionCalendar({
                 }`}
               >
                 <Image
-                  src={emotion.characterName || emotionIcons[emotion.emotion]}
+                  src={(() => {
+                    // 감정 상태에 따른 이미지 경로 반환
+                    if (!emotion) return '/images/emotion/soso.svg';
+
+                    // 감정 퍼센트에서 감정 상태 추출 (예: "행복 94%" -> "행복")
+                    const emotionState = emotion.summary.split(' ')[0];
+
+                    switch (emotionState) {
+                      case '행복':
+                        return '/images/emotion/happy.svg';
+                      case '매우행복':
+                        return '/images/emotion/veryHappy.svg';
+                      case '슬픔':
+                        return '/images/emotion/sad.svg';
+                      case '매우슬픔':
+                        return '/images/emotion/verySad.svg';
+                      case '화남':
+                        return '/images/emotion/angry.svg';
+                      case '평온':
+                      default:
+                        return '/images/emotion/soso.svg';
+                    }
+                  })()}
                   alt={emotionLabels[emotion.emotion]}
                   width={20}
                   height={20}
@@ -179,10 +200,30 @@ export default function EmotionCalendar({
                         '0'
                       );
                       const selectedDateString = `${year}-${month}-${day}`;
-                      return (
-                        emotionData.find((d) => d.date === selectedDateString)
-                          ?.characterName || '/images/emotion/soso.svg'
+                      const emotionLog = emotionData.find(
+                        (d) => d.date === selectedDateString
                       );
+                      // 감정 상태에 따른 이미지 경로 반환
+                      if (!emotionLog) return '/images/emotion/soso.svg';
+
+                      // 감정 퍼센트에서 감정 상태 추출 (예: "행복 94%" -> "행복")
+                      const emotionState = emotionLog.summary.split(' ')[0];
+
+                      switch (emotionState) {
+                        case '행복':
+                          return '/images/emotion/happy.svg';
+                        case '매우행복':
+                          return '/images/emotion/veryHappy.svg';
+                        case '슬픔':
+                          return '/images/emotion/sad.svg';
+                        case '매우슬픔':
+                          return '/images/emotion/verySad.svg';
+                        case '화남':
+                          return '/images/emotion/angry.svg';
+                        case '평온':
+                        default:
+                          return '/images/emotion/soso.svg';
+                      }
                     })()}
                     alt="감정"
                     width={48}
@@ -225,9 +266,10 @@ export default function EmotionCalendar({
                     );
                     const day = String(selectedDate.getDate()).padStart(2, '0');
                     const selectedDateString = `${year}-${month}-${day}`;
-                    return emotionData.find(
+                    const emotionLog = emotionData.find(
                       (d) => d.date === selectedDateString
-                    )?.conversationSummary;
+                    );
+                    return emotionLog?.short_summary || '대화 내용이 없습니다.';
                   })()}
                 </p>
               </div>

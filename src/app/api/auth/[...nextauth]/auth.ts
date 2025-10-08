@@ -31,6 +31,7 @@ export const authOptions: AuthOptions = {
         session.user.name = token.name as string;
         session.user.email = token.email as string;
         session.user.image = token.image as string;
+        session.user.kakaoId = token.kakaoId as string;
         session.accessToken = token.accessToken as string;
       }
       return session;

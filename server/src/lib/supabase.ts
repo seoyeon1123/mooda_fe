@@ -1,13 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
+
+// .env.local 우선 로드 후 기본 .env 로드
+dotenv.config({ path: '.env.local' });
+dotenv.config();
 
 const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
+const supabaseKey = supabaseServiceRoleKey || supabaseAnonKey;
+
+if (!supabaseUrl || !supabaseKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseKey);
 
 // 타입 정의
 export interface Database {

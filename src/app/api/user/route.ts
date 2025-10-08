@@ -2,20 +2,75 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/auth';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-
-    if (!session?.user) {
+    if (!session?.accessToken) {
       return NextResponse.json(
         { error: '인증되지 않은 사용자입니다.' },
         { status: 401 }
       );
     }
 
-    return NextResponse.json(session.user);
+    const { searchParams } = new URL(request.url);
+    const queryString = searchParams.toString();
+    const serverUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/user${
+      queryString ? `?${queryString}` : ''
+    }`;
+
+    const response = await fetch(serverUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.accessToken}`,
+      },
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      return NextResponse.json(data, { status: response.status });
+    }
+
+    return NextResponse.json(data);
   } catch (error) {
     console.error('사용자 정보 조회 오류:', error);
+    return NextResponse.json(
+      { error: '서버 오류가 발생했습니다.' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST() {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: '인증되지 않은 사용자입니다.' },
+        { status: 401 }
+      );
+    }
+
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/user`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: session.user.id,
+          userName: session.user.name,
+          email: session.user.email,
+          image: session.user.image,
+          kakaoId: (session.user as { kakaoId?: string | number | null })
+            .kakaoId,
+        }),
+      }
+    );
+
+    const data = await response.json();
+    return NextResponse.json(data, { status: response.status });
+  } catch (error) {
+    console.error('사용자 생성 오류:', error);
     return NextResponse.json(
       { error: '서버 오류가 발생했습니다.' },
       { status: 500 }

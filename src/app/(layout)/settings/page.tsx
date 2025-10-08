@@ -121,13 +121,13 @@ export default function SettingsPage() {
                 <Image
                   src={user.image}
                   alt="profile"
-                  width={50}
-                  height={50}
-                  className="rounded-full"
+                  width={60}
+                  height={60}
+                  className="rounded-full object-cover aspect-square"
                 />
               ) : (
-                <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center">
-                  <User size={20} className="text-gray-400" />
+                <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                  <User size={28} className="text-gray-400" />
                 </div>
               )}
               <button className="absolute -bottom-1 -right-1 w-6 h-6 bg-white rounded-full shadow-lg flex items-center justify-center border border-gray-200">
@@ -135,7 +135,9 @@ export default function SettingsPage() {
               </button>
             </div>
             <div className="flex flex-col">
-              <span className="font-semibold text-lg">{user?.name}</span>
+              <span className="font-semibold text-lg">
+                {user?.name || '사용자'}
+              </span>
             </div>
           </div>
         </div>

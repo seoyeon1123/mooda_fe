@@ -67,7 +67,7 @@ export const loadEmotionData = async (
           date: result.date,
           emotion: mapEmotionToType(result.emotion),
           summary: result.summary,
-          conversationSummary,
+          short_summary: conversationSummary,
         };
       }
     }
@@ -94,7 +94,7 @@ ${messages.join('\n')}
 `;
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -139,13 +139,13 @@ export const loadMonthlyEmotionData = async (
             date: string;
             emotion: string;
             summary: string;
-            shortSummary: string;
+            short_summary: string;
             characterName: string;
           }) => ({
-            date: new Date(log.date).toISOString().split('T')[0], // YYYY-MM-DD 형식
+            date: log.date, // 서버에서 받은 YYYY-MM-DD 형식을 그대로 사용
             emotion: mapEmotionToType(log.emotion),
             summary: log.summary, // 감정 퍼센트
-            conversationSummary: log.shortSummary || log.summary, // 대화 요약
+            short_summary: log.short_summary || log.summary, // 대화 요약
             characterName: log.characterName, // 이미지 경로
           })
         );

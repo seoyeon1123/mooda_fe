@@ -29,7 +29,10 @@ const app: Express = express();
 const port = process.env.PORT || 8080;
 
 // Gemini REST 폴백 헬퍼 (ListModels로 사용 가능 모델/버전 자동 선택)
-async function generateWithGemini(contents: any[]): Promise<string> {
+type GeminiContentPart = { text: string };
+type GeminiContent = { role: 'user' | 'model'; parts: GeminiContentPart[] };
+
+async function generateWithGemini(contents: GeminiContent[]): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY is not set');
 
@@ -40,19 +43,35 @@ async function generateWithGemini(contents: any[]): Promise<string> {
     const res = await fetch(url);
     if (!res.ok) return [];
     const data = await res.json();
-    const models: Array<{ name: string; supportedGenerationMethods?: string[] }> = data.models || [];
+    const models: Array<{
+      name: string;
+      supportedGenerationMethods?: string[];
+    }> = data.models || [];
     return models
-      .filter((m) => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
+      .filter(
+        (m) =>
+          Array.isArray(m.supportedGenerationMethods) &&
+          m.supportedGenerationMethods.includes('generateContent')
+      )
       .map((m) => m.name.replace('models/', ''));
   }
 
   // 1) 실제 지원 모델 조회
-  const [v1betaList, v1List] = await Promise.all([listModels('v1beta'), listModels('v1')]);
+  const [v1betaList, v1List] = await Promise.all([
+    listModels('v1beta'),
+    listModels('v1'),
+  ]);
 
   // 2) 선호 순서에 따라 정렬된 후보 생성
   function sortByPreference(list: string[]): string[] {
     const score = (name: string) =>
-      name.includes('1.5-flash') ? 3 : name.includes('1.5-pro') ? 2 : name.includes('1.0-pro') ? 1 : 0;
+      name.includes('1.5-flash')
+        ? 3
+        : name.includes('1.5-pro')
+        ? 2
+        : name.includes('1.0-pro')
+        ? 1
+        : 0;
     return [...new Set(list)].sort((a, b) => score(b) - score(a));
   }
 
@@ -69,7 +88,7 @@ async function generateWithGemini(contents: any[]): Promise<string> {
     candidates.push({ version: 'v1', model: 'gemini-1.0-pro' });
   }
 
-  let lastError: any = null;
+  let lastError: unknown = null;
   for (const c of candidates) {
     try {
       const url = `https://generativelanguage.googleapis.com/${c.version}/models/${c.model}:generateContent?key=${apiKey}`;
@@ -90,7 +109,11 @@ async function generateWithGemini(contents: any[]): Promise<string> {
       continue;
     }
   }
-  throw new Error(`Gemini REST fallback failed: ${lastError instanceof Error ? lastError.message : String(lastError)}`);
+  throw new Error(
+    `Gemini REST fallback failed: ${
+      lastError instanceof Error ? lastError.message : String(lastError)
+    }`
+  );
 }
 
 // Gemini AI 초기화
@@ -138,6 +161,16 @@ app.use(
 
 // JSON 파서 설정
 app.use(express.json());
+
+// 헬스 체크 엔드포인트
+app.get('/health', (req: Request, res: Response): void => {
+  res.status(200).json({ status: 'ok' });
+});
+
+// 루트 엔드포인트 (헬스 체크 대체)
+app.get('/', (req: Request, res: Response): void => {
+  res.status(200).send('ok');
+});
 
 // 인증 미들웨어
 const authenticateUser = async (
@@ -439,7 +472,7 @@ async function handleSendMessage(data: SendMessageData, res: Response) {
     let aiContent = '';
     try {
       aiContent = await generateWithGemini([
-        { role: 'user', parts: [{ text: characterPrompt }] }
+        { role: 'user', parts: [{ text: characterPrompt }] },
       ]);
     } catch (e) {
       console.error('⚠️ Gemini 실패, 로컬 폴백 사용:', e);
@@ -652,7 +685,7 @@ async function handleAnalyzeEmotion(data: AnalyzeEmotionData, res: Response) {
     let text = '';
     try {
       text = await generateWithGemini([
-        { role: 'user', parts: [{ text: prompt }] }
+        { role: 'user', parts: [{ text: prompt }] },
       ]);
     } catch (e) {
       console.error('⚠️ Gemini 실패, simpleAnalyzeConversation 폴백:', e);

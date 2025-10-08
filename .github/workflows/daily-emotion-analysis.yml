@@ -10,21 +10,6 @@ jobs:
   daily-emotion-analysis:
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:13
-        env:
-          POSTGRES_USER: user
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: mooda
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -39,26 +24,13 @@ jobs:
           cd server
           npm install
 
-      - name: Run Prisma migration
-        env:
-          DATABASE_URL: postgresql://user:password@localhost:5432/mooda?schema=public
-        run: |
-          cd server
-          npx prisma migrate deploy
-
-      - name: Run Prisma generate
-        env:
-          DATABASE_URL: postgresql://user:password@localhost:5432/mooda?schema=public
-        run: |
-          cd server
-          npx prisma generate
-
       - name: Run daily emotion analysis
         env:
-          DATABASE_URL: postgresql://user:password@localhost:5432/mooda?schema=public
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           REFRESH_TOKEN_SECRET: ${{ secrets.REFRESH_TOKEN_SECRET }}
         run: |
           cd server
-          npx tsx src/lib/scheduler.ts
+          npx ts-node src/lib/scheduler.ts

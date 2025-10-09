@@ -1,0 +1,13 @@
+export default function manifest() {
+  return {
+    name: 'Mooda',
+    short_name: 'Mooda',
+    start_url: '/',
+    display: 'standalone',
+    background_color: '#f5f5f4',
+    theme_color: '#16a34a',
+    icons: [
+      { src: '/images/logo.svg', sizes: 'any', type: 'image/svg+xml' },
+    ],
+  } as const;
+}

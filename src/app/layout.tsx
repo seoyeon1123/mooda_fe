@@ -19,6 +19,8 @@ export default function RootLayout({
     <html lang="ko">
       <head>
         <link rel="icon" href="/images/logo.svg" type="image/svg+xml" />
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#16a34a" />
       </head>
       <body className={inter.className}>
         <ClientSessionProvider>
@@ -26,6 +28,11 @@ export default function RootLayout({
             {children}
           </div>
         </ClientSessionProvider>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `if ('serviceWorker' in navigator) { window.addEventListener('load', function () { navigator.serviceWorker.register('/sw.js'); }); }`,
+          }}
+        />
       </body>
     </html>
   );

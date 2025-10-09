@@ -42,7 +42,7 @@ const useUserStore = create<UserState>()(
   persist(
     (set, get) => ({
       user: null,
-      selectedPersonalityId: 'MUNI',
+      selectedPersonalityId: 'calm',
       selectedPersonality: null,
       personalityChanged: false,
       chatMessages: [],
@@ -144,10 +144,31 @@ const useUserStore = create<UserState>()(
             const userData = await response.json();
             console.log('📋 서버에서 로드된 사용자 데이터:', userData);
 
-            // 로컬 상태를 우선하되, 서버 상태도 고려
+            // 우선순위: 마지막 대화 캐릭터 > 서버 저장값 > 로컬 > 기본 'friendly'
             const localSelected = get().selectedPersonalityId;
-            const serverSelected = userData.selectedPersonalityId || 'MUNI';
-            const effectiveSelected = localSelected || serverSelected;
+            let effectiveSelected = 'friendly';
+            try {
+              const lastPersonaRes = await fetch(
+                `/api/conversations/${userData.id}/${new Date()
+                  .toISOString()
+                  .slice(0, 10)}`,
+                { cache: 'no-store' }
+              );
+              if (lastPersonaRes.ok) {
+                const json = await lastPersonaRes.json();
+                const last = (json.conversations || [])
+                  .filter(
+                    (c: { personality_id?: string | null }) => c.personality_id
+                  )
+                  .slice(-1)[0];
+                if (last?.personality_id)
+                  effectiveSelected = last.personality_id;
+              }
+            } catch {}
+            if (!effectiveSelected) {
+              effectiveSelected =
+                userData.selectedPersonalityId || localSelected || 'friendly';
+            }
 
             set({
               user: {
@@ -158,8 +179,12 @@ const useUserStore = create<UserState>()(
               selectedPersonalityId: effectiveSelected,
             });
 
-            // 로컬과 서버 상태가 다르면 백그라운드에서 동기화
-            if (localSelected && localSelected !== serverSelected) {
+            // 사용자가 실제 변경한 경우에만 서버 동기화
+            if (
+              get().personalityChanged &&
+              localSelected &&
+              localSelected !== serverSelected
+            ) {
               console.log(
                 '🔄 로컬과 서버 상태 불일치, 백그라운드 동기화 중...'
               );
@@ -211,7 +236,7 @@ const useUserStore = create<UserState>()(
                     image: userData.image,
                   },
                   selectedPersonalityId:
-                    userData.selectedPersonalityId || 'MUNI',
+                    userData.selectedPersonalityId || 'friendly',
                 });
                 console.log('✅ 사용자 데이터 로드 성공 (생성 후)');
               }
@@ -226,7 +251,7 @@ const useUserStore = create<UserState>()(
         } catch (error) {
           console.error('사용자 데이터 로드 실패:', error);
           // 오류 시 로컬 상태 유지
-          set({ selectedPersonalityId: get().selectedPersonalityId || 'MUNI' });
+          set({ selectedPersonalityId: get().selectedPersonalityId || 'calm' });
         }
       },
       ackPersonalityChange: () => set({ personalityChanged: false }),

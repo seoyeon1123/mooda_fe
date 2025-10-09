@@ -172,6 +172,8 @@ export class ServerSupabaseService {
         user_name: user.userName,
         image: user.image,
         email: user.email,
+        // 최초 생성 시 기본 캐릭터: 무니(friendly)
+        selected_personality_id: 'friendly',
       })
       .select()
       .single();
@@ -253,6 +255,18 @@ export class ServerSupabaseService {
     const { data, error } = await query;
     if (error || !data) return [];
     return data as { created_at: string }[];
+  }
+
+  async getLastConversationPersonality(userId: string): Promise<string | null> {
+    const { data, error } = await getSupabaseServer()
+      .from('conversations')
+      .select('personality_id')
+      .eq('user_id', userId)
+      .not('personality_id', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if (error || !data || data.length === 0) return null;
+    return (data[0].personality_id as string) || null;
   }
 
   async getEmotionLogs(

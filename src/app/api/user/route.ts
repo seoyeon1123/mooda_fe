@@ -47,7 +47,9 @@ export async function POST() {
     const svc = new ServerSupabaseService();
     const created = await svc.createUser({
       id: session.user.id as string,
-      kakaoId: (session.user as any).kakaoId || (session.user.id as string),
+      kakaoId:
+        (session.user as { kakaoId?: string; id?: string })?.kakaoId ||
+        (session.user.id as string),
       userName: session.user.name || '사용자',
       email: session.user.email || undefined,
       image: session.user.image || undefined,
@@ -73,7 +75,9 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
+    const body = (await request.json()) as {
+      selectedPersonalityId?: string | null;
+    };
     const { selectedPersonalityId } = body;
 
     const svc = new ServerSupabaseService();
@@ -81,7 +85,7 @@ export async function PUT(request: NextRequest) {
       session.user.id as string,
       {
         selected_personality_id: selectedPersonalityId,
-      } as any
+      }
     );
     if (!updatedUser)
       return NextResponse.json({ error: 'update failed' }, { status: 500 });

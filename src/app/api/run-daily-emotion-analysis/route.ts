@@ -61,7 +61,12 @@ async function resolvePersonaNameFromHistory(
   }>,
   userId: string
 ): Promise<string | undefined> {
-  const lastAI = history.filter((h: any) => h.role === 'ai').slice(-1)[0] as
+  const lastAI = history
+    .filter(
+      (h: { role: string; content: string; personality_id?: string | null }) =>
+        h.role === 'ai'
+    )
+    .slice(-1)[0] as
     | { role: string; content: string; personality_id?: string | null }
     | undefined;
   const pid = lastAI?.personality_id ?? undefined;
@@ -148,20 +153,25 @@ export async function POST(request: NextRequest) {
         if (history.length === 0) continue;
 
         // 1차 요약/감정
-        let { summary, emotion } = simpleAnalyzeFromHistory(
+        const analyzed = simpleAnalyzeFromHistory(
           history as Array<{ role: string; content: string }>
         );
+        let summary = analyzed.summary;
+        const emotion = analyzed.emotion;
         const characterName = emotionToSvg(emotion);
 
         // 상황 인지: 메뉴/추천 요청이면 내러티브 요약으로 보강
         const userTextAll = history
-          .filter((h: any) => h.role === 'user')
-          .map((h: any) => h.content)
+          .filter((h: { role: string; content: string }) => h.role === 'user')
+          .map((h: { role: string; content: string }) => h.content)
           .join(' ') as string;
         const askedMenu = /(야식|메뉴|배고파|뭐 먹|추천)/.test(userTextAll);
         if (askedMenu) {
           const lastAI = history
-            .filter((h: any) => h.role === 'ai')
+            .filter(
+              (h: { role: string; content: string; personality_id?: string | null }) =>
+                h.role === 'ai'
+            )
             .slice(-1)[0] as
             | { content: string; personality_id?: string | null }
             | undefined;
@@ -179,8 +189,8 @@ export async function POST(request: NextRequest) {
             : [];
           if (personaName) {
             const lastUser = (history
-              .filter((h: any) => h.role === 'user')
-              .map((h: any) => h.content.trim())
+              .filter((h: { role: string; content: string }) => h.role === 'user')
+              .map((h: { role: string; content: string }) => h.content.trim())
               .filter(Boolean)
               .slice(-1)[0] || '') as string;
             const isMenuAsk = /(야식|메뉴|배고파|뭐 먹|추천)/.test(lastUser);
@@ -238,14 +248,12 @@ export async function POST(request: NextRequest) {
         processed += 1;
       } catch (e) {
         // 개별 사용자 실패는 무시하고 계속 진행
-        // eslint-disable-next-line no-console
         console.error('daily run error for user', user.id, e);
       }
     }
 
     return NextResponse.json({ success: true, processed });
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.error('run-daily-emotion-analysis error:', error);
     return NextResponse.json(
       { success: false, error: 'Internal server error' },

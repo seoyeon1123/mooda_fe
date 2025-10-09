@@ -364,9 +364,7 @@ export default function PersonalitySelector({
     if (!session?.user?.id) return;
 
     try {
-      const response = await fetch(
-        `http://localhost:8080/api/custom-ai?userId=${session.user.id}`
-      );
+      const response = await fetch(`/api/custom-ai?userId=${session.user.id}`);
       if (response.ok) {
         const data = await response.json();
         console.log('🔍 커스텀 AI 데이터:', data);

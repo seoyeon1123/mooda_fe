@@ -140,13 +140,14 @@ export const loadMonthlyEmotionData = async (
             emotion: string;
             summary: string;
             short_summary: string;
-            characterName: string;
+            character_name?: string | null;
+            characterName?: string | null;
           }) => ({
-            date: log.date, // 서버에서 받은 YYYY-MM-DD 형식을 그대로 사용
+            date: log.date,
             emotion: mapEmotionToType(log.emotion),
-            summary: log.summary, // 감정 퍼센트
-            short_summary: log.short_summary || log.summary, // 대화 요약
-            characterName: log.characterName, // 이미지 경로
+            summary: log.summary,
+            short_summary: log.short_summary || log.summary,
+            characterName: log.character_name ?? log.characterName ?? null,
           })
         );
 

@@ -2,35 +2,21 @@ name: Daily Emotion Analysis
 
 on:
   schedule:
-    # 매일 한국시간 자정 (UTC 15:00 = KST 00:00)
+    # 매일 자정 KST (15:00 UTC)
     - cron: '0 15 * * *'
-  workflow_dispatch: # 수동 실행 가능
+  workflow_dispatch:
 
 jobs:
-  daily-emotion-analysis:
+  run:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-
-      - name: Install dependencies
-        run: |
-          cd server
-          npm install
-
-      - name: Run daily emotion analysis
+      - name: Call Next API to run daily emotion analysis (yesterday)
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          REFRESH_TOKEN_SECRET: ${{ secrets.REFRESH_TOKEN_SECRET }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          API_URL: ${{ secrets.CRON_API_URL }}
         run: |
-          cd server
-          npx ts-node src/lib/scheduler.ts
+          if [ -z "$API_URL" ]; then echo "CRON_API_URL secret missing"; exit 1; fi
+          curl -sS -X POST "$API_URL/api/run-daily-emotion-analysis" \
+            -H "Content-Type: application/json" \
+            -H "x-cron-secret: $CRON_SECRET" \
+            -d '{"testToday": false}'

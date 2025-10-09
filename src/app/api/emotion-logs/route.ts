@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ServerSupabaseService } from '@/lib/server-supabase-service';
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,20 +15,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 서버로 프록시
-    const serverUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/emotion-logs?userId=${userId}&year=${year}&month=${month}`;
-    console.log('🔄 Proxying to server:', serverUrl);
-
-    const response = await fetch(serverUrl);
-    const data = await response.json();
-
-    console.log('📨 Server response:', data);
-
-    if (!response.ok) {
-      return NextResponse.json(data, { status: response.status });
-    }
-
-    return NextResponse.json(data);
+    const svc = new ServerSupabaseService();
+    const targetYear = year ? parseInt(year, 10) : new Date().getFullYear();
+    const targetMonth = month ? parseInt(month, 10) - 1 : new Date().getMonth();
+    const start = new Date(targetYear, targetMonth, 1);
+    const end = new Date(targetYear, targetMonth + 1, 0, 23, 59, 59, 999);
+    const logs = await svc.getEmotionLogs(userId, start, end);
+    return NextResponse.json({ emotionLogs: logs });
   } catch (error) {
     console.error('Proxy error:', error);
     return NextResponse.json(

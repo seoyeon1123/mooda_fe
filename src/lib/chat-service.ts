@@ -20,7 +20,7 @@ export const loadConversationHistoryByDate = async (
   try {
     const dateString = date.toISOString().split('T')[0]; // YYYY-MM-DD 형식
 
-    const response = await fetch(`http://localhost:8080/api/socket`, {
+    const response = await fetch(`/api/socket`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -51,7 +51,7 @@ export const getConversationDates = async (
   personalityId: string
 ): Promise<string[]> => {
   try {
-    const response = await fetch(`http://localhost:8080/api/socket`, {
+    const response = await fetch(`/api/socket`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -81,7 +81,7 @@ export const loadConversationHistory = async (
   personalityId: string
 ): Promise<Message[]> => {
   try {
-    const response = await fetch(`http://localhost:8080/api/socket`, {
+    const response = await fetch(`/api/socket`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -123,7 +123,7 @@ export const sendChatMessage = async (
       data: { message, userId, personalityId },
     });
 
-    const response = await fetch(`http://localhost:8080/api/socket`, {
+    const response = await fetch(`/api/socket`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -227,9 +227,7 @@ export const getPersonalityByIdAsync = async (
     }
 
     console.log('🔍 커스텀 AI 조회 중:', id);
-    const response = await fetch(
-      `http://localhost:8080/api/custom-ai?userId=${session.user.id}`
-    );
+    const response = await fetch(`/api/custom-ai?userId=${session.user.id}`);
 
     if (!response.ok) {
       console.error('커스텀 AI 조회 실패:', response.status);

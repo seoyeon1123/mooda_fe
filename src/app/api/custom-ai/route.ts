@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/auth';
+import { ServerSupabaseService } from '@/lib/server-supabase-service';
+import crypto from 'crypto';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function GET(_request: NextRequest) {
@@ -14,26 +16,10 @@ export async function GET(_request: NextRequest) {
       );
     }
 
-    // 백엔드 서버로 프록시
-    const serverUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/custom-ai`;
-    console.log('🔄 Proxying GET request to server:', serverUrl);
-
-    const response = await fetch(serverUrl, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.accessToken}`,
-      },
-    });
-
-    const data = await response.json();
-    console.log('📨 Server response:', data);
-
-    if (!response.ok) {
-      return NextResponse.json(data, { status: response.status });
-    }
-
-    return NextResponse.json(data);
+    const svc = new ServerSupabaseService();
+    const userId = session.user.id as string;
+    const list = await svc.getCustomAIPersonalitiesByUserId(userId);
+    return NextResponse.json(list);
   } catch (error) {
     console.error('Proxy error:', error);
     return NextResponse.json(
@@ -65,33 +51,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
-    console.log('📝 Request body:', body);
-
-    // 백엔드 서버로 프록시
-    const serverUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/custom-ai`;
-    console.log('🔄 Proxying POST request to server:', serverUrl);
-
-    const response = await fetch(serverUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.accessToken}`,
-      },
-      body: JSON.stringify(body),
+    const body = (await request.json()) as {
+      userId: string;
+      name: string;
+      description: string;
+      mbtiTypes: string;
+      systemPrompt: string;
+    };
+    const svc = new ServerSupabaseService();
+    const created = await svc.createCustomAIPersonality({
+      id: crypto.randomUUID(),
+      userId: body.userId,
+      name: body.name,
+      description: body.description,
+      mbtiTypes: body.mbtiTypes,
+      systemPrompt: body.systemPrompt,
     });
-
-    console.log('📡 Backend response status:', response.status);
-
-    const data = await response.json();
-    console.log('📨 Backend response data:', data);
-
-    if (!response.ok) {
-      console.log('❌ Backend returned error:', response.status, data);
-      return NextResponse.json(data, { status: response.status });
+    if (!created) {
+      return NextResponse.json({ error: 'create failed' }, { status: 500 });
     }
-
-    return NextResponse.json(data);
+    return NextResponse.json(created);
   } catch (error) {
     console.error('❌ Proxy error:', error);
     return NextResponse.json(

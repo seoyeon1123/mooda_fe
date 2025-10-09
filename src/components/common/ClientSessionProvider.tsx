@@ -19,27 +19,19 @@ function StoreHydrator({ children }: { children: ReactNode }) {
 
       // 서버에 사용자 정보 전송 (안전하게 처리)
       const sendUserToServer = async () => {
-        if (!process.env.NEXT_PUBLIC_API_URL) {
-          console.warn('⚠️ NEXT_PUBLIC_API_URL이 설정되지 않았습니다.');
-          return;
-        }
-
         try {
-          const response = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                kakaoId: sessionUser.kakaoId,
-                email: sessionUser.email,
-                userName: sessionUser.name,
-                image: sessionUser.image,
-              }),
-            }
-          );
+          const response = await fetch(`/api/auth/login`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              kakaoId: sessionUser.kakaoId,
+              email: sessionUser.email,
+              userName: sessionUser.name,
+              image: sessionUser.image,
+            }),
+          });
 
           if (response.ok) {
             const data = await response.json();

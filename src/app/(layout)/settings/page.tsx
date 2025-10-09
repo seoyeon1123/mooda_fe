@@ -33,7 +33,7 @@ export default function SettingsPage() {
   useEffect(() => {
     // 컴포넌트 마운트 시 사용자 데이터 불러오기
     loadUserData();
-  }, []); // 빈 의존성 배열로 변경
+  }, [loadUserData]);
 
   // 선택된 성격 로드 (커스텀 AI 포함)
   useEffect(() => {

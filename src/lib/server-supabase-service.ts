@@ -67,7 +67,17 @@ export class ServerSupabaseService {
       .eq('is_active', true)
       .order('created_at', { ascending: false });
     if (error || !data) return [];
-    return data as any;
+    return data as Array<{
+      id: string;
+      user_id: string;
+      name: string;
+      mbti_types: string;
+      system_prompt: string;
+      description: string;
+      is_active: boolean;
+      created_at: string;
+      updated_at: string;
+    }>;
   }
 
   async getCustomAIPersonalityById(
@@ -90,7 +100,17 @@ export class ServerSupabaseService {
       .eq('is_active', true)
       .maybeSingle();
     if (error) return null;
-    return (data as any) || null;
+    return (
+      (data as {
+        id: string;
+        user_id: string;
+        name: string;
+        mbti_types: string;
+        system_prompt: string;
+        description: string;
+        is_active: boolean;
+      }) || null
+    );
   }
 
   async createCustomAIPersonality(personality: {
@@ -115,7 +135,17 @@ export class ServerSupabaseService {
       .select()
       .single();
     if (error) return null;
-    return data as any;
+    return data as {
+      id: string;
+      user_id: string;
+      name: string;
+      mbti_types: string;
+      system_prompt: string;
+      description: string;
+      is_active: boolean;
+      created_at?: string;
+      updated_at?: string;
+    };
   }
   async getUserByKakaoId(kakaoId: string): Promise<UserRow | null> {
     const { data, error } = await getSupabaseServer()

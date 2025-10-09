@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { X } from 'lucide-react';
 import { AIPersonality } from '@/lib/ai-personalities';
 import { getConversationDates } from '@/lib/chat-service';
@@ -22,14 +22,8 @@ export default function CalendarModal({
 }: CalendarModalProps) {
   const [conversationDates, setConversationDates] = useState<string[]>([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  // 대화가 있는 날짜 목록 불러오기
-  useEffect(() => {
-    if (show && userId && currentPersonality) {
-      loadConversationDates();
-    }
-  }, [show, userId, currentPersonality]);
 
-  const loadConversationDates = async () => {
+  const loadConversationDates = useCallback(async () => {
     if (!userId || !currentPersonality) return;
 
     try {
@@ -38,7 +32,13 @@ export default function CalendarModal({
     } catch (error) {
       console.error('대화 날짜 목록 불러오기 실패:', error);
     }
-  };
+  }, [userId, currentPersonality]);
+  // 대화가 있는 날짜 목록 불러오기
+  useEffect(() => {
+    if (show) {
+      void loadConversationDates();
+    }
+  }, [show, loadConversationDates]);
 
   const handleDateClick = (date: Date) => {
     onDateSelect(date);

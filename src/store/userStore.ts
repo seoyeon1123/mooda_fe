@@ -165,9 +165,10 @@ const useUserStore = create<UserState>()(
                   effectiveSelected = last.personality_id;
               }
             } catch {}
+            const serverSelected: string | undefined =
+              userData.selectedPersonalityId || undefined;
             if (!effectiveSelected) {
-              effectiveSelected =
-                userData.selectedPersonalityId || localSelected || 'friendly';
+              effectiveSelected = serverSelected || localSelected || 'friendly';
             }
 
             set({
@@ -183,6 +184,7 @@ const useUserStore = create<UserState>()(
             if (
               get().personalityChanged &&
               localSelected &&
+              serverSelected &&
               localSelected !== serverSelected
             ) {
               console.log(

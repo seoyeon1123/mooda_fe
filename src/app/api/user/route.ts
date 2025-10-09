@@ -81,12 +81,9 @@ export async function PUT(request: NextRequest) {
     const { selectedPersonalityId } = body;
 
     const svc = new ServerSupabaseService();
-    const updatedUser = await svc.updateUser(
-      session.user.id as string,
-      {
-        selected_personality_id: selectedPersonalityId,
-      }
-    );
+    const updatedUser = await svc.updateUser(session.user.id as string, {
+      selected_personality_id: selectedPersonalityId,
+    });
     if (!updatedUser)
       return NextResponse.json({ error: 'update failed' }, { status: 500 });
     return NextResponse.json(updatedUser);

@@ -169,8 +169,11 @@ export async function POST(request: NextRequest) {
         if (askedMenu) {
           const lastAI = history
             .filter(
-              (h: { role: string; content: string; personality_id?: string | null }) =>
-                h.role === 'ai'
+              (h: {
+                role: string;
+                content: string;
+                personality_id?: string | null;
+              }) => h.role === 'ai'
             )
             .slice(-1)[0] as
             | { content: string; personality_id?: string | null }
@@ -189,7 +192,9 @@ export async function POST(request: NextRequest) {
             : [];
           if (personaName) {
             const lastUser = (history
-              .filter((h: { role: string; content: string }) => h.role === 'user')
+              .filter(
+                (h: { role: string; content: string }) => h.role === 'user'
+              )
               .map((h: { role: string; content: string }) => h.content.trim())
               .filter(Boolean)
               .slice(-1)[0] || '') as string;

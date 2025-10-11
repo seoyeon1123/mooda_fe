@@ -32,7 +32,7 @@ export default function MessageList({ messages, isLoading }: MessageListProps) {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
+    <div className="flex-1 overflow-y-auto px-3 py-4 space-y-3">
       {messages.length === 0 && (
         <div className="text-center text-gray-500 mt-8">
           <div className="text-lg font-medium mb-2">안녕하세요! 👋</div>
@@ -49,7 +49,7 @@ export default function MessageList({ messages, isLoading }: MessageListProps) {
           return (
             <div
               key={message.id}
-              className="text-center text-sm text-gray-500 py-2"
+              className="text-center text-sm text-gray-500 py-1.5"
             >
               <span>{message.content}</span>
             </div>

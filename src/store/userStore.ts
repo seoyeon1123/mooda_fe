@@ -144,32 +144,12 @@ const useUserStore = create<UserState>()(
             const userData = await response.json();
             console.log('📋 서버에서 로드된 사용자 데이터:', userData);
 
-            // 우선순위: 마지막 대화 캐릭터 > 서버 저장값 > 로컬 > 기본 'friendly'
+            // 우선순위 간소화: 서버 저장값 > 로컬 저장값 (처음 생성 시 서버가 'friendly' 저장)
             const localSelected = get().selectedPersonalityId;
-            let effectiveSelected = 'friendly';
-            try {
-              const lastPersonaRes = await fetch(
-                `/api/conversations/${userData.id}/${new Date()
-                  .toISOString()
-                  .slice(0, 10)}`,
-                { cache: 'no-store' }
-              );
-              if (lastPersonaRes.ok) {
-                const json = await lastPersonaRes.json();
-                const last = (json.conversations || [])
-                  .filter(
-                    (c: { personality_id?: string | null }) => c.personality_id
-                  )
-                  .slice(-1)[0];
-                if (last?.personality_id)
-                  effectiveSelected = last.personality_id;
-              }
-            } catch {}
             const serverSelected: string | undefined =
               userData.selectedPersonalityId || undefined;
-            if (!effectiveSelected) {
-              effectiveSelected = serverSelected || localSelected || 'friendly';
-            }
+            const effectiveSelected =
+              serverSelected || localSelected || 'friendly';
 
             set({
               user: {

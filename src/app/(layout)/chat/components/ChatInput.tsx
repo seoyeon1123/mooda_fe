@@ -6,6 +6,7 @@ interface ChatInputProps {
   setInputMessage: (message: string) => void;
   sendMessage: (message: string) => void;
   isLoading: boolean;
+  canSendToday?: boolean;
 }
 
 export default function ChatInput({
@@ -13,6 +14,7 @@ export default function ChatInput({
   setInputMessage,
   sendMessage,
   isLoading,
+  canSendToday = true,
 }: ChatInputProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,7 +24,7 @@ export default function ChatInput({
   };
 
   return (
-    <div className="bg-white/80 backdrop-blur-sm border-t border-stone-200 px-4 py-2 flex-shrink-0">
+    <div className="bg-white/80 backdrop-blur-sm border-t border-stone-200 px-3 py-1.5 flex-shrink-0">
       <form
         onSubmit={handleSubmit}
         className="flex flex-row justify-center items-center gap-3"
@@ -44,13 +46,13 @@ export default function ChatInput({
               minHeight: '44px',
               maxHeight: '100px',
             }}
-            disabled={isLoading}
+            disabled={isLoading || !canSendToday}
           />
         </div>
         <button
           type="submit"
-          disabled={!inputMessage.trim() || isLoading}
-          className="w-9 h-9 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed rounded-full flex items-center justify-center transition-colors duration-200"
+          disabled={!inputMessage.trim() || isLoading || !canSendToday}
+          className="w-8 h-8 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed rounded-full flex items-center justify-center transition-colors duration-200"
         >
           <Send size={18} className="text-white ml-0.5" />
         </button>

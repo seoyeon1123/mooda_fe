@@ -38,24 +38,22 @@ export default function SettingsPage() {
   // 선택된 성격 로드 (커스텀 AI 포함)
   useEffect(() => {
     const loadSelectedPersonality = async () => {
-      // 스토어에 성격 정보가 없고 selectedPersonalityId가 있으면 로드
-      if (selectedPersonalityId && !storedPersonality) {
-        const personality = await getPersonalityByIdAsync(
-          selectedPersonalityId
-        );
-        if (personality) {
-          setSelectedPersonality({
-            id: personality.id,
-            name: personality.name,
-            description: personality.description,
-            shortDescription: personality.shortDescription,
-            iconType: personality.iconType,
-          });
-        }
+      if (!selectedPersonalityId) return;
+      // ID가 바뀌면 항상 동기화 (표시 불일치 방지)
+      if (storedPersonality?.id === selectedPersonalityId) return;
+      const personality = await getPersonalityByIdAsync(selectedPersonalityId);
+      if (personality) {
+        setSelectedPersonality({
+          id: personality.id,
+          name: personality.name,
+          description: personality.description,
+          shortDescription: personality.shortDescription,
+          iconType: personality.iconType,
+        });
       }
     };
     loadSelectedPersonality();
-  }, [selectedPersonalityId, storedPersonality, setSelectedPersonality]);
+  }, [selectedPersonalityId, storedPersonality?.id, setSelectedPersonality]);
 
   const handlePersonalityChange = async (personality: AIPersonality) => {
     await saveSelectedPersonalityId(personality.id);

@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import { ServerSupabaseService } from '@/lib/server-supabase-service';
 
 export async function GET(
-  req: NextRequest,
+  _req: Request,
   {
     params,
   }: {
@@ -12,22 +13,23 @@ export async function GET(
     }>;
   }
 ) {
-  const { userId, dateString } = await params;
-
-  // 백엔드 서버의 userId+date API로 프록시
-  const backendUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/conversations/${userId}/${dateString}`;
-
   try {
-    const response = await fetch(backendUrl, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    const { userId, personalityId, dateString } = await params;
+    const target = new Date(dateString);
+    target.setHours(0, 0, 0, 0);
 
-    const data = await response.json();
-    return NextResponse.json(data, { status: response.status });
-  } catch {
-    return NextResponse.json({ conversations: [] }, { status: 500 });
+    const svc = new ServerSupabaseService();
+    const conversations = await svc.getConversationsByDate(
+      userId,
+      personalityId,
+      target
+    );
+    return NextResponse.json({ conversations, success: true });
+  } catch (e) {
+    console.error('get conversations by date error:', e);
+    return NextResponse.json(
+      { conversations: [], success: false, error: 'internal' },
+      { status: 500 }
+    );
   }
 }

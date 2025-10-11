@@ -35,6 +35,25 @@ export default function ChatTab() {
     AIPersonality | undefined
   >();
   const [showCalendar, setShowCalendar] = useState(false);
+  const [canSendToday, setCanSendToday] = useState(true);
+
+  // 서버 대화 레코드를 화면용 Message로 변환 (타입 안전)
+  const toMessage = (conv: {
+    id: string;
+    role: string;
+    content: string;
+    created_at?: string;
+    createdAt?: string | Date;
+  }): Message => {
+    const role: Message['role'] =
+      conv.role === 'user' ? 'user' : conv.role === 'system' ? 'system' : 'ai';
+    return {
+      id: conv.id,
+      role,
+      content: conv.content,
+      createdAt: new Date(conv.created_at || conv.createdAt || Date.now()),
+    };
+  };
 
   // 디버깅: 하이드레이션 상태와 성격 ID 변경 감지
   useEffect(() => {
@@ -73,6 +92,14 @@ export default function ChatTab() {
       const day = String(date.getDate()).padStart(2, '0');
       const dateString = `${year}-${month}-${day}`;
 
+      // 전송 가능 여부: 선택한 날짜가 오늘인지 확인
+      const now = new Date();
+      const isToday =
+        now.getFullYear() === date.getFullYear() &&
+        now.getMonth() === date.getMonth() &&
+        now.getDate() === date.getDate();
+      setCanSendToday(isToday);
+
       // REST API 호출
       const res = await fetch(
         `/api/conversations/${session.user.id}/${currentPersonality.id}/${dateString}`
@@ -95,21 +122,8 @@ export default function ChatTab() {
         setMessages([noMessage]);
         console.log('setMessages (no message):', [noMessage]);
       } else {
-        // 서버에서 받은 대화 기록의 createdAt을 Date 객체로 변환
-        const processedConversations = conversations.map(
-          (conv: {
-            created_at?: string;
-            createdAt?: string | Date;
-            id: string;
-            role: string;
-            content: string;
-          }) => ({
-            ...conv,
-            createdAt: new Date(
-              conv.created_at || conv.createdAt || Date.now()
-            ),
-          })
-        );
+        // 서버에서 받은 대화를 화면용 Message로 변환
+        const processedConversations: Message[] = conversations.map(toMessage);
 
         const messagesToSet = [
           {
@@ -147,6 +161,24 @@ export default function ChatTab() {
     const initializeChat = async () => {
       setIsLoading(true);
       try {
+        const todayHeader: Message = {
+          id: `date-${new Date().toISOString()}`,
+          role: 'system',
+          content: `--- ${new Date().toLocaleDateString()} ---`,
+          createdAt: new Date(),
+        };
+        const withTodayHeader = (msgs: Message[]): Message[] => {
+          if (
+            msgs.length > 0 &&
+            msgs[0].role === 'system' &&
+            typeof msgs[0].content === 'string' &&
+            msgs[0].content === todayHeader.content
+          ) {
+            return msgs;
+          }
+          return [todayHeader, ...msgs];
+        };
+
         // 스토어에서 직접 최신 상태를 조회하여 의존성 문제를 회피합니다.
         const personalityChanged = useUserStore.getState().personalityChanged;
 
@@ -155,6 +187,7 @@ export default function ChatTab() {
           session.user.id,
           currentPersonality.id
         );
+        const processedConversations: Message[] = conversations.map(toMessage);
 
         if (personalityChanged && currentPersonality) {
           const systemMessage: Message = {
@@ -163,7 +196,9 @@ export default function ChatTab() {
             content: `--- 이제부터 ${currentPersonality.name}와 대화를 시작합니다 ---`,
             createdAt: new Date(),
           };
-          setMessages([...conversations, systemMessage]);
+          setMessages(
+            withTodayHeader([...processedConversations, systemMessage])
+          );
           ackPersonalityChange(); // 플래그 리셋
         } else if (conversations.length === 0 && currentPersonality) {
           const welcomeMessage: Message = {
@@ -172,9 +207,9 @@ export default function ChatTab() {
             content: `안녕! 나는 ${currentPersonality.name}야! ${currentPersonality.shortDescription}`,
             createdAt: new Date(),
           };
-          setMessages([welcomeMessage]);
+          setMessages(withTodayHeader([welcomeMessage]));
         } else {
-          setMessages(conversations);
+          setMessages(withTodayHeader(processedConversations));
         }
 
         // 날짜 선택 상태 초기화
@@ -336,6 +371,7 @@ export default function ChatTab() {
         setInputMessage={setInputMessage}
         sendMessage={handleSendMessage}
         isLoading={isLoading}
+        canSendToday={canSendToday}
       />
 
       {/* 달력 모달 */}
@@ -343,7 +379,7 @@ export default function ChatTab() {
         show={showCalendar}
         onClose={() => setShowCalendar(false)}
         onDateSelect={handleDateSelect}
-        userId="demo-user"
+        userId={session?.user?.id || ''}
         currentPersonality={currentPersonality || null}
       />
     </div>

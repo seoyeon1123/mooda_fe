@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import { X } from 'lucide-react';
-import { AIPersonality } from '@/lib/ai-personalities';
-import { getConversationDates } from '@/lib/chat-service';
+import { useState, useEffect, useCallback } from "react";
+import { X } from "lucide-react";
+import { AIPersonality } from "@/lib/ai-personalities";
+import { getConversationDates } from "@/lib/chat-service";
 
 interface CalendarModalProps {
   show: boolean;
@@ -30,7 +30,7 @@ export default function CalendarModal({
       const dates = await getConversationDates(userId, currentPersonality.id);
       setConversationDates(dates);
     } catch (error) {
-      console.error('대화 날짜 목록 불러오기 실패:', error);
+      console.error("대화 날짜 목록 불러오기 실패:", error);
     }
   }, [userId, currentPersonality]);
   // 대화가 있는 날짜 목록 불러오기
@@ -58,8 +58,8 @@ export default function CalendarModal({
 
   const formatDate = (date: Date) => {
     const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
     return `${y}-${m}-${d}`;
   };
 
@@ -108,11 +108,18 @@ export default function CalendarModal({
           onClick={() => handleDateClick(date)}
           className={`w-6 h-6 text-xs rounded-full transition-colors ${
             isToday
-              ? 'bg-green-500 text-white font-semibold'
+              ? "bg-green-500 text-white font-semibold hover:bg-green-600"
               : hasConversation
-              ? 'bg-blue-100 text-blue-700 hover:bg-blue-200 font-medium'
-              : 'text-gray-700 hover:bg-gray-100'
+              ? "bg-blue-100 text-blue-700 hover:bg-blue-200 font-medium"
+              : "text-gray-700 hover:bg-gray-100"
           }`}
+          title={
+            isToday
+              ? "오늘 - 기본 채팅으로 돌아가기"
+              : hasConversation
+              ? `${date.toLocaleDateString()} 대화 보기`
+              : `${date.toLocaleDateString()} - 대화 없음`
+          }
         >
           {day}
         </button>
@@ -136,10 +143,10 @@ export default function CalendarModal({
     return days;
   };
 
-  const changeMonth = (direction: 'prev' | 'next') => {
+  const changeMonth = (direction: "prev" | "next") => {
     setCurrentMonth((prev) => {
       const newMonth = new Date(prev);
-      if (direction === 'prev') {
+      if (direction === "prev") {
         newMonth.setMonth(prev.getMonth() - 1);
       } else {
         newMonth.setMonth(prev.getMonth() + 1);
@@ -171,7 +178,7 @@ export default function CalendarModal({
           {/* 월 네비게이션 */}
           <div className="flex items-center justify-between mb-3">
             <button
-              onClick={() => changeMonth('prev')}
+              onClick={() => changeMonth("prev")}
               className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
             >
               ‹
@@ -180,7 +187,7 @@ export default function CalendarModal({
               {currentMonth.getFullYear()}년 {currentMonth.getMonth() + 1}월
             </span>
             <button
-              onClick={() => changeMonth('next')}
+              onClick={() => changeMonth("next")}
               className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
             >
               ›
@@ -189,7 +196,7 @@ export default function CalendarModal({
 
           {/* 요일 헤더 */}
           <div className="grid grid-cols-7 gap-1 mb-2">
-            {['일', '월', '화', '수', '목', '금', '토'].map((day) => (
+            {["일", "월", "화", "수", "목", "금", "토"].map((day) => (
               <div
                 key={day}
                 className="w-6 h-6 flex items-center justify-center text-xs font-medium text-gray-500"
@@ -206,7 +213,7 @@ export default function CalendarModal({
           <div className="flex items-center justify-center space-x-3 mt-3 text-xs text-gray-600">
             <div className="flex items-center space-x-1">
               <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span>오늘</span>
+              <span>오늘 (기본 채팅)</span>
             </div>
             <div className="flex items-center space-x-1">
               <div className="w-2 h-2 bg-blue-100 rounded-full"></div>

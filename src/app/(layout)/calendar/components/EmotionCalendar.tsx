@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react';
-import Image from 'next/image';
+import { useState, useEffect } from "react";
+import Image from "next/image";
 import {
   EmotionData,
   emotionColors,
   emotionLabels,
   monthNames,
-} from '@/lib/calendar-types';
-import { loadMonthlyEmotionData } from '@/lib/emotion-service';
+} from "@/lib/calendar-types";
+import { loadMonthlyEmotionData, emotionToSvg } from "@/lib/emotion-service";
 
 interface EmotionCalendarProps {
   userId: string;
@@ -23,21 +23,12 @@ export default function EmotionCalendar({
 
   useEffect(() => {
     const fetchEmotionData = async () => {
-      console.log('🔍 Fetching emotion data for userId:', userId);
-      console.log(
-        '🔍 Year:',
-        currentDate.getFullYear(),
-        'Month:',
-        currentDate.getMonth() + 1
-      );
-
       const data = await loadMonthlyEmotionData(
         userId,
         currentDate.getFullYear(),
         currentDate.getMonth() + 1 // JavaScript의 월은 0부터 시작하므로 +1
       );
 
-      console.log('📅 Received emotion data:', data);
       setEmotionData(data);
     };
     fetchEmotionData();
@@ -83,8 +74,8 @@ export default function EmotionCalendar({
       );
       // 타임존 이슈 해결: UTC 변환 없이 직접 문자열 생성
       const year = currentDate.getFullYear();
-      const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-      const dayStr = String(day).padStart(2, '0');
+      const month = String(currentDate.getMonth() + 1).padStart(2, "0");
+      const dayStr = String(day).padStart(2, "0");
       const dateString = `${year}-${month}-${dayStr}`;
       const emotion = emotionData.find((d) => d.date === dateString);
 
@@ -93,7 +84,7 @@ export default function EmotionCalendar({
           key={day}
           onClick={() => handleDateClick(date)}
           className={`p-2 cursor-pointer hover:bg-gray-100 rounded-lg transition-colors
-            ${selectedDate?.getDate() === day ? 'ring-2 ring-green-500' : ''}`}
+            ${selectedDate?.getDate() === day ? "ring-2 ring-green-500" : ""}`}
         >
           <div className="text-center">
             <span className="text-sm">{day}</span>
@@ -104,29 +95,7 @@ export default function EmotionCalendar({
                 }`}
               >
                 <Image
-                  src={(() => {
-                    // 감정 상태에 따른 이미지 경로 반환
-                    if (!emotion) return '/images/emotion/soso.svg';
-
-                    // 감정 퍼센트에서 감정 상태 추출 (예: "행복 94%" -> "행복")
-                    const emotionState = emotion.summary.split(' ')[0];
-
-                    switch (emotionState) {
-                      case '행복':
-                        return '/images/emotion/happy.svg';
-                      case '매우행복':
-                        return '/images/emotion/veryHappy.svg';
-                      case '슬픔':
-                        return '/images/emotion/sad.svg';
-                      case '매우슬픔':
-                        return '/images/emotion/verySad.svg';
-                      case '화남':
-                        return '/images/emotion/angry.svg';
-                      case '평온':
-                      default:
-                        return '/images/emotion/soso.svg';
-                    }
-                  })()}
+                  src={emotionToSvg(emotion.emotion)}
                   alt={emotionLabels[emotion.emotion]}
                   width={20}
                   height={20}
@@ -163,7 +132,7 @@ export default function EmotionCalendar({
       </div>
 
       <div className="grid grid-cols-7 gap-1 mb-2">
-        {['일', '월', '화', '수', '목', '금', '토'].map((day) => (
+        {["일", "월", "화", "수", "목", "금", "토"].map((day) => (
           <div key={day} className="text-center text-gray-500 text-sm">
             {day}
           </div>
@@ -180,8 +149,8 @@ export default function EmotionCalendar({
           {(() => {
             // 타임존 이슈 해결: 선택된 날짜를 로컬 기준으로 문자열 생성
             const year = selectedDate.getFullYear();
-            const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
-            const day = String(selectedDate.getDate()).padStart(2, '0');
+            const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
+            const day = String(selectedDate.getDate()).padStart(2, "0");
             const selectedDateString = `${year}-${month}-${day}`;
             return emotionData.find((d) => d.date === selectedDateString);
           })() ? (
@@ -194,36 +163,18 @@ export default function EmotionCalendar({
                       const year = selectedDate.getFullYear();
                       const month = String(
                         selectedDate.getMonth() + 1
-                      ).padStart(2, '0');
+                      ).padStart(2, "0");
                       const day = String(selectedDate.getDate()).padStart(
                         2,
-                        '0'
+                        "0"
                       );
                       const selectedDateString = `${year}-${month}-${day}`;
                       const emotionLog = emotionData.find(
                         (d) => d.date === selectedDateString
                       );
-                      // 감정 상태에 따른 이미지 경로 반환
-                      if (!emotionLog) return '/images/emotion/soso.svg';
-
-                      // 감정 퍼센트에서 감정 상태 추출 (예: "행복 94%" -> "행복")
-                      const emotionState = emotionLog.summary.split(' ')[0];
-
-                      switch (emotionState) {
-                        case '행복':
-                          return '/images/emotion/happy.svg';
-                        case '매우행복':
-                          return '/images/emotion/veryHappy.svg';
-                        case '슬픔':
-                          return '/images/emotion/sad.svg';
-                        case '매우슬픔':
-                          return '/images/emotion/verySad.svg';
-                        case '화남':
-                          return '/images/emotion/angry.svg';
-                        case '평온':
-                        default:
-                          return '/images/emotion/soso.svg';
-                      }
+                      return emotionLog
+                        ? emotionToSvg(emotionLog.emotion)
+                        : "/images/emotion/soso.svg";
                     })()}
                     alt="감정"
                     width={48}
@@ -238,10 +189,10 @@ export default function EmotionCalendar({
                       const year = selectedDate.getFullYear();
                       const month = String(
                         selectedDate.getMonth() + 1
-                      ).padStart(2, '0');
+                      ).padStart(2, "0");
                       const day = String(selectedDate.getDate()).padStart(
                         2,
-                        '0'
+                        "0"
                       );
                       const selectedDateString = `${year}-${month}-${day}`;
                       return emotionData.find(
@@ -262,14 +213,14 @@ export default function EmotionCalendar({
                     const year = selectedDate.getFullYear();
                     const month = String(selectedDate.getMonth() + 1).padStart(
                       2,
-                      '0'
+                      "0"
                     );
-                    const day = String(selectedDate.getDate()).padStart(2, '0');
+                    const day = String(selectedDate.getDate()).padStart(2, "0");
                     const selectedDateString = `${year}-${month}-${day}`;
                     const emotionLog = emotionData.find(
                       (d) => d.date === selectedDateString
                     );
-                    return emotionLog?.short_summary || '대화 내용이 없습니다.';
+                    return emotionLog?.short_summary || "대화 내용이 없습니다.";
                   })()}
                 </p>
               </div>

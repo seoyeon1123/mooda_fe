@@ -1,9 +1,11 @@
 export interface Message {
   id: string;
-  role: 'user' | 'ai' | 'system';
+  role: "user" | "ai" | "system";
   content: string;
   createdAt: Date;
   userId?: string;
+  personalityId?: string | null;
+  characterName?: string;
 }
 
 export interface ChatState {
@@ -16,4 +18,4 @@ export interface ChatState {
   lastMidnight: Date;
 }
 
-import { AIPersonality } from './ai-personalities';
+import { AIPersonality } from "./ai-personalities";

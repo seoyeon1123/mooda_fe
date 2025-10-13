@@ -1,22 +1,16 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import {
-  User,
-  Bell,
-  Shield,
-  HelpCircle,
-  LogOut,
-  Bot,
-  Camera,
-} from 'lucide-react';
-import type { AIPersonality } from '@/lib/ai-personalities';
-import { getPersonalityByIdAsync } from '@/lib/ai-personalities';
-import PersonalitySelector from './components/PersonalitySelector';
-import MooIcon from './components/MooIcon';
-import { signOut } from 'next-auth/react';
-import useUserStore from '@/store/userStore';
-import Image from 'next/image';
+import { useState, useEffect } from "react";
+import type { AIPersonality } from "@/lib/ai-personalities";
+import { getPersonalityByIdAsync } from "@/lib/ai-personalities";
+import PersonalitySelector from "./components/PersonalitySelector";
+import ProfileSection from "./components/ProfileSection";
+import AIPersonalitySection from "./components/AIPersonalitySection";
+import SettingsOptions from "./components/SettingsOptions";
+import AppInfo from "./components/AppInfo";
+import LogoutButton from "./components/LogoutButton";
+import { signOut } from "next-auth/react";
+import useUserStore from "@/store/userStore";
 
 export default function SettingsPage() {
   const [showPersonalitySelector, setShowPersonalitySelector] = useState(false);
@@ -70,7 +64,7 @@ export default function SettingsPage() {
 
   const handleKakaoLogout = () => {
     clearUser();
-    signOut({ callbackUrl: '/?logout=true' });
+    signOut({ callbackUrl: "/?logout=true" });
   };
 
   if (showPersonalitySelector) {
@@ -81,7 +75,7 @@ export default function SettingsPage() {
           <div className="flex items-center space-x-3">
             <button
               onClick={() => setShowPersonalitySelector(false)}
-              className="text-green-700 hover:text-green-800"
+              className="text-green-700 hover:text-green-800 cursor-pointer"
             >
               ‹
             </button>
@@ -111,138 +105,26 @@ export default function SettingsPage() {
 
       {/* Content */}
       <div className="flex-1 p-4 space-y-4">
-        {/* Profile Section */}
-        <div className="bg-white/60 rounded-xl p-4">
-          <div className="flex items-center space-x-4">
-            <div className="relative">
-              {user?.image ? (
-                <Image
-                  src={user.image}
-                  alt="profile"
-                  width={60}
-                  height={60}
-                  className="rounded-full object-cover aspect-square"
-                />
-              ) : (
-                <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-                  <User size={28} className="text-gray-400" />
-                </div>
-              )}
-              <button className="absolute -bottom-1 -right-1 w-6 h-6 bg-white rounded-full shadow-lg flex items-center justify-center border border-gray-200">
-                <Camera size={12} className="text-gray-600" />
-              </button>
-            </div>
-            <div className="flex flex-col">
-              <span className="font-semibold text-lg">
-                {user?.name || '사용자'}
-              </span>
-            </div>
-          </div>
-        </div>
+        <ProfileSection user={user} />
 
-        {/* AI Personality Section */}
-        <div className="bg-white/60 rounded-xl p-4">
-          <h3 className="font-semibold text-gray-800 mb-3">Moo 성격 설정</h3>
-          <button
-            onClick={() => setShowPersonalitySelector(true)}
-            className="w-full bg-white/60 rounded-lg p-3 flex items-center justify-between hover:bg-white/80 transition-colors border border-gray-100"
-          >
-            <div className="flex items-center space-x-3">
-              <Bot size={20} className="text-gray-600" />
-              <div className="text-left">
-                {storedPersonality && (
-                  <span className="text-sm text-gray-500 flex flex-row items-center gap-1">
-                    현재는
-                    <MooIcon
-                      type={
-                        storedPersonality.iconType as
-                          | 'user'
-                          | 'friendly'
-                          | 'wise'
-                          | 'energetic'
-                          | 'calm'
-                          | 'INTJ'
-                          | 'INTP'
-                          | 'ENTJ'
-                          | 'ENTP'
-                          | 'INFJ'
-                          | 'INFP'
-                          | 'ENFJ'
-                          | 'ENFP'
-                          | 'ISTJ'
-                          | 'ISFJ'
-                          | 'ESTJ'
-                          | 'ESFJ'
-                          | 'ISTP'
-                          | 'ISFP'
-                          | 'ESTP'
-                          | 'ESFP'
-                          | 'default'
-                      }
-                      size={20}
-                    />
-                    <span className="font-bold text-green-800">
-                      {storedPersonality.name}
-                    </span>
-                    와 대화중이에요
-                  </span>
-                )}
-              </div>
-            </div>
-            <span className="text-gray-400">›</span>
-          </button>
-        </div>
+        <AIPersonalitySection
+          storedPersonality={
+            storedPersonality as {
+              id: string;
+              name: string;
+              description: string;
+              shortDescription: string;
+              iconType: string;
+            } | null
+          }
+          onPersonalitySelectorOpen={() => setShowPersonalitySelector(true)}
+        />
 
-        {/* Settings Options */}
-        <div className="space-y-2">
-          <button className="w-full bg-white/60 rounded-xl p-4 flex items-center justify-between hover:bg-white/80 transition-colors">
-            <div className="flex items-center space-x-3">
-              <Bell size={20} className="text-gray-600" />
-              <span className="text-gray-800">알림 설정</span>
-            </div>
-            <span className="text-gray-400">›</span>
-          </button>
+        <SettingsOptions />
 
-          <button className="w-full bg-white/60 rounded-xl p-4 flex items-center justify-between hover:bg-white/80 transition-colors">
-            <div className="flex items-center space-x-3">
-              <Shield size={20} className="text-gray-600" />
-              <span className="text-gray-800">개인정보 보호</span>
-            </div>
-            <span className="text-gray-400">›</span>
-          </button>
+        <AppInfo />
 
-          <button className="w-full bg-white/60 rounded-xl p-4 flex items-center justify-between hover:bg-white/80 transition-colors">
-            <div className="flex items-center space-x-3">
-              <HelpCircle size={20} className="text-gray-600" />
-              <span className="text-gray-800">도움말</span>
-            </div>
-            <span className="text-gray-400">›</span>
-          </button>
-        </div>
-
-        {/* App Info */}
-        <div className="bg-white/60 rounded-xl p-4">
-          <h3 className="font-semibold text-gray-800 mb-2">앱 정보</h3>
-          <div className="space-y-2 text-sm text-gray-600">
-            <div className="flex justify-between">
-              <span>버전</span>
-              <span>1.0.0</span>
-            </div>
-            <div className="flex justify-between">
-              <span>개발자</span>
-              <span>MOODA Team</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Logout Button */}
-        <button
-          onClick={handleKakaoLogout}
-          className="w-full bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-center space-x-2 hover:bg-red-100 transition-colors"
-        >
-          <LogOut size={20} className="text-red-600" />
-          <span className="text-red-600 font-medium">로그아웃</span>
-        </button>
+        <LogoutButton onLogout={handleKakaoLogout} />
       </div>
     </div>
   );

@@ -1,0 +1,37 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Main body circle -->
+  <circle cx="100" cy="100" r="90" fill="#fbbf24" />
+
+  <!-- Shadow/depth circle -->
+  <circle cx="100" cy="100" r="90" fill="none" stroke="rgba(0,0,0,0.1)" stroke-width="3" />
+
+  <!-- Game controller D-pad -->
+  <g transform="translate(100, 140)">
+    <rect x="-15" y="-8" width="30" height="16" rx="3" fill="rgba(0,0,0,0.15)" />
+    <rect x="-8" y="-15" width="16" height="30" rx="3" fill="rgba(0,0,0,0.15)" />
+  </g>
+
+  <!-- Left eye -->
+  <g>
+    <circle cx="75" cy="85" r="8" fill="rgba(0,0,0,0.15)" />
+    <circle cx="75" cy="83" r="6" fill="rgba(0,0,0,0.3)" />
+  </g>
+
+  <!-- Right eye -->
+  <g>
+    <circle cx="125" cy="85" r="8" fill="rgba(0,0,0,0.15)" />
+    <circle cx="125" cy="83" r="6" fill="rgba(0,0,0,0.3)" />
+  </g>
+
+  <!-- Nose -->
+  <ellipse cx="100" cy="100" rx="3" ry="8" fill="rgba(0,0,0,0.1)" />
+
+  <!-- Smile -->
+  <path
+    d="M 70 115 Q 100 135 130 115"
+    stroke="rgba(0,0,0,0.2)"
+    stroke-width="4"
+    stroke-linecap="round"
+    fill="none"
+  />
+</svg>

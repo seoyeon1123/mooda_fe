@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { Message } from '@/lib/chat-types';
-import { useEffect, useRef } from 'react';
+import { Message } from "@/lib/chat-types";
+import { useEffect, useRef } from "react";
 
 interface MessageListProps {
   messages: Message[];
@@ -12,7 +12,7 @@ export default function MessageList({ messages, isLoading }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   useEffect(() => {
@@ -21,12 +21,12 @@ export default function MessageList({ messages, isLoading }: MessageListProps) {
 
   // 시간 포맷팅 함수 (유연/안전)
   const formatTime = (value: Date | string | number | undefined | null) => {
-    if (!value) return '';
+    if (!value) return "";
     const date = value instanceof Date ? value : new Date(value);
-    if (isNaN(date.getTime())) return '';
-    return date.toLocaleTimeString('ko-KR', {
-      hour: '2-digit',
-      minute: '2-digit',
+    if (isNaN(date.getTime())) return "";
+    return date.toLocaleTimeString("ko-KR", {
+      hour: "2-digit",
+      minute: "2-digit",
       hour12: true,
     });
   };
@@ -45,7 +45,7 @@ export default function MessageList({ messages, isLoading }: MessageListProps) {
       )}
 
       {messages.map((message) => {
-        if (message.role === 'system') {
+        if (message.role === "system") {
           return (
             <div
               key={message.id}
@@ -56,25 +56,25 @@ export default function MessageList({ messages, isLoading }: MessageListProps) {
           );
         }
 
-        const isUserMessage = message.role === 'user';
+        const isUserMessage = message.role === "user";
         return (
           <div
             key={message.id}
             className={`flex ${
-              isUserMessage ? 'justify-end' : 'justify-start'
+              isUserMessage ? "justify-end" : "justify-start"
             }`}
           >
             <div
               className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
                 isUserMessage
-                  ? 'bg-green-600 text-white'
-                  : 'bg-white text-gray-800 shadow-sm border'
+                  ? "bg-green-600 text-white"
+                  : "bg-white text-gray-800 shadow-sm border"
               }`}
             >
               <div className="text-sm">{message.content}</div>
               <div
                 className={`text-xs mt-1 ${
-                  isUserMessage ? 'text-green-100' : 'text-gray-400'
+                  isUserMessage ? "text-green-100" : "text-gray-400"
                 }`}
               >
                 {formatTime(message.createdAt)}
@@ -92,11 +92,11 @@ export default function MessageList({ messages, isLoading }: MessageListProps) {
                 <div className="w-2 h-2 bg-green-400 rounded-full animate-bounce"></div>
                 <div
                   className="w-2 h-2 bg-green-400 rounded-full animate-bounce"
-                  style={{ animationDelay: '0.1s' }}
+                  style={{ animationDelay: "0.1s" }}
                 ></div>
                 <div
                   className="w-2 h-2 bg-green-400 rounded-full animate-bounce"
-                  style={{ animationDelay: '0.2s' }}
+                  style={{ animationDelay: "0.2s" }}
                 ></div>
               </div>
             </div>

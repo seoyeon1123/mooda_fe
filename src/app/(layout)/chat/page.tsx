@@ -230,6 +230,34 @@ export default function ChatTab() {
       setIsLoading(true);
       setIsInitializing(true);
       try {
+        // 로컬 맵퍼를 정의하여 외부의 toMessage 의존성을 제거합니다.
+        const mapToMessage = (conv: {
+          id: string;
+          role: string;
+          content: string;
+          created_at?: string;
+          createdAt?: string | Date;
+          personality_id?: string | null;
+        }): Message => {
+          const role: Message["role"] =
+            conv.role === "user"
+              ? "user"
+              : conv.role === "system"
+              ? "system"
+              : "ai";
+          return {
+            id: conv.id,
+            role,
+            content: conv.content,
+            createdAt: new Date(
+              conv.created_at || conv.createdAt || Date.now()
+            ),
+            personalityId: conv.personality_id ?? null,
+            characterName:
+              getPersonName(conv.personality_id ?? null) || undefined,
+          };
+        };
+
         const todayHeader: Message = {
           id: `date-${new Date().toISOString()}`,
           role: "system",
@@ -256,7 +284,8 @@ export default function ChatTab() {
           session.user.id,
           "" as unknown as string
         );
-        const processedConversations: Message[] = conversations.map(toMessage);
+        const processedConversations: Message[] =
+          conversations.map(mapToMessage);
 
         if (personalityChanged && currentPersonality) {
           const systemMessage: Message = {
@@ -299,15 +328,8 @@ export default function ChatTab() {
             content: `안녕! 나는 ${currentPersonality.name}야! ${currentPersonality.shortDescription}`,
             createdAt: new Date(),
           };
-          const startMsgContent = `--- 이제부터 ${currentPersonality.name}와 대화를 시작합니다 ---`;
-          const startMsgFromState = messages.find(
-            (m) => m.role === "system" && m.content === startMsgContent
-          );
           const base = [welcomeMessage];
-          const merged = startMsgFromState
-            ? [...base, startMsgFromState]
-            : base;
-          setMessages(withTodayHeader(merged));
+          setMessages(withTodayHeader(base));
         } else {
           const startMsgContent = currentPersonality
             ? `--- 이제부터 ${currentPersonality.name}와 대화를 시작합니다 ---`
@@ -315,13 +337,7 @@ export default function ChatTab() {
           const alreadyHasStart = processedConversations.some(
             (m) => m.role === "system" && m.content === startMsgContent
           );
-          const startMsgFromState = messages.find(
-            (m) => m.role === "system" && m.content === startMsgContent
-          );
-          let merged =
-            !alreadyHasStart && startMsgFromState
-              ? [...processedConversations, startMsgFromState]
-              : processedConversations;
+          let merged = processedConversations;
           // 로컬 저장된 시작 메시지가 있는데 서버 기록에 없다면 복구
           try {
             const todayKey = new Date().toISOString().split("T")[0];
@@ -332,7 +348,7 @@ export default function ChatTab() {
             const hasInMerged = merged.some(
               (m) => m.role === "system" && m.content === localStart
             );
-            if (localStart && !hasInMerged) {
+            if (localStart && !hasInMerged && !alreadyHasStart) {
               merged = [
                 ...merged,
                 {

@@ -1,4 +1,4 @@
-import { getSupabaseServer } from "./supabase-server";
+import { getSupabaseServer } from './supabase-server';
 
 export type UserRow = {
   id: string;
@@ -29,19 +29,25 @@ export type EmotionLogRow = {
 };
 
 export class ServerSupabaseService {
+  private formatLocalDateString(date: Date): string {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
   async getUsers(): Promise<UserRow[]> {
     const { data, error } = await getSupabaseServer()
-      .from("users")
-      .select("*")
-      .order("created_at", { ascending: true });
+      .from('users')
+      .select('*')
+      .order('created_at', { ascending: true });
     if (error || !data) return [] as UserRow[];
     return data as UserRow[];
   }
   async getUserById(id: string): Promise<UserRow | null> {
     const { data, error } = await getSupabaseServer()
-      .from("users")
-      .select("*")
-      .eq("id", id)
+      .from('users')
+      .select('*')
+      .eq('id', id)
       .maybeSingle();
     if (error) return null;
     return data as UserRow | null;
@@ -61,11 +67,11 @@ export class ServerSupabaseService {
     }>
   > {
     const { data, error } = await getSupabaseServer()
-      .from("custom_ai_personalities")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("is_active", true)
-      .order("created_at", { ascending: false });
+      .from('custom_ai_personalities')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false });
     if (error || !data) return [];
     return data as Array<{
       id: string;
@@ -93,11 +99,11 @@ export class ServerSupabaseService {
     is_active: boolean;
   } | null> {
     const { data, error } = await getSupabaseServer()
-      .from("custom_ai_personalities")
-      .select("*")
-      .eq("id", id)
-      .eq("user_id", userId)
-      .eq("is_active", true)
+      .from('custom_ai_personalities')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .eq('is_active', true)
       .maybeSingle();
     if (error) return null;
     return (
@@ -122,7 +128,7 @@ export class ServerSupabaseService {
     description: string;
   }) {
     const { data, error } = await getSupabaseServer()
-      .from("custom_ai_personalities")
+      .from('custom_ai_personalities')
       .insert({
         id: personality.id,
         user_id: personality.userId,
@@ -150,16 +156,16 @@ export class ServerSupabaseService {
 
   async deleteCustomAIPersonality(id: string): Promise<boolean> {
     const { error } = await getSupabaseServer()
-      .from("custom_ai_personalities")
+      .from('custom_ai_personalities')
       .update({ is_active: false })
-      .eq("id", id);
+      .eq('id', id);
     return !error;
   }
   async getUserByKakaoId(kakaoId: string): Promise<UserRow | null> {
     const { data, error } = await getSupabaseServer()
-      .from("users")
-      .select("*")
-      .eq("kakao_id", kakaoId)
+      .from('users')
+      .select('*')
+      .eq('kakao_id', kakaoId)
       .maybeSingle();
     if (error) return null;
     return data as UserRow | null;
@@ -173,7 +179,7 @@ export class ServerSupabaseService {
     email?: string;
   }): Promise<UserRow | null> {
     const { data, error } = await getSupabaseServer()
-      .from("users")
+      .from('users')
       .insert({
         id: user.id,
         kakao_id: user.kakaoId,
@@ -181,7 +187,7 @@ export class ServerSupabaseService {
         image: user.image,
         email: user.email,
         // 최초 생성 시 기본 캐릭터: 무니(friendly)
-        selected_personality_id: "friendly",
+        selected_personality_id: 'friendly',
       })
       .select()
       .single();
@@ -194,9 +200,9 @@ export class ServerSupabaseService {
     updates: Partial<UserRow>
   ): Promise<UserRow | null> {
     const { data, error } = await getSupabaseServer()
-      .from("users")
+      .from('users')
       .update(updates)
-      .eq("id", id)
+      .eq('id', id)
       .select()
       .single();
     if (error) return null;
@@ -211,7 +217,7 @@ export class ServerSupabaseService {
     personalityId?: string;
   }): Promise<ConversationRow | null> {
     const { data, error } = await getSupabaseServer()
-      .from("conversations")
+      .from('conversations')
       .insert({
         id: conv.id,
         user_id: conv.userId,
@@ -236,14 +242,14 @@ export class ServerSupabaseService {
     end.setHours(23, 59, 59, 999);
 
     let query = getSupabaseServer()
-      .from("conversations")
-      .select("*")
-      .eq("user_id", userId)
-      .gte("created_at", start.toISOString())
-      .lte("created_at", end.toISOString())
-      .order("created_at", { ascending: true });
+      .from('conversations')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('created_at', start.toISOString())
+      .lte('created_at', end.toISOString())
+      .order('created_at', { ascending: true });
 
-    if (personalityId) query = query.eq("personality_id", personalityId);
+    if (personalityId) query = query.eq('personality_id', personalityId);
 
     const { data, error } = await query;
     if (error || !data) return [];
@@ -255,11 +261,11 @@ export class ServerSupabaseService {
     personalityId: string
   ): Promise<{ created_at: string }[]> {
     let query = getSupabaseServer()
-      .from("conversations")
-      .select("created_at")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: true });
-    if (personalityId) query = query.eq("personality_id", personalityId);
+      .from('conversations')
+      .select('created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: true });
+    if (personalityId) query = query.eq('personality_id', personalityId);
     const { data, error } = await query;
     if (error || !data) return [];
     return data as { created_at: string }[];
@@ -267,11 +273,11 @@ export class ServerSupabaseService {
 
   async getLastConversationPersonality(userId: string): Promise<string | null> {
     const { data, error } = await getSupabaseServer()
-      .from("conversations")
-      .select("personality_id")
-      .eq("user_id", userId)
-      .not("personality_id", "is", null)
-      .order("created_at", { ascending: false })
+      .from('conversations')
+      .select('personality_id')
+      .eq('user_id', userId)
+      .not('personality_id', 'is', null)
+      .order('created_at', { ascending: false })
       .limit(1);
     if (error || !data || data.length === 0) return null;
     return (data[0].personality_id as string) || null;
@@ -282,15 +288,15 @@ export class ServerSupabaseService {
     start: Date,
     end: Date
   ): Promise<EmotionLogRow[]> {
-    const startS = start.toISOString().split("T")[0];
-    const endS = end.toISOString().split("T")[0];
+    const startS = this.formatLocalDateString(start);
+    const endS = this.formatLocalDateString(end);
     const { data, error } = await getSupabaseServer()
-      .from("emotion_logs")
-      .select("*")
-      .eq("user_id", userId)
-      .gte("date", startS)
-      .lte("date", endS)
-      .order("date", { ascending: true });
+      .from('emotion_logs')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('date', startS)
+      .lte('date', endS)
+      .order('date', { ascending: true });
     if (error || !data) return [];
     return data as EmotionLogRow[];
   }
@@ -299,12 +305,12 @@ export class ServerSupabaseService {
     userId: string,
     date: Date
   ): Promise<EmotionLogRow | null> {
-    const dateS = date.toISOString().split("T")[0];
+    const dateS = this.formatLocalDateString(date);
     const { data, error } = await getSupabaseServer()
-      .from("emotion_logs")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("date", dateS)
+      .from('emotion_logs')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('date', dateS)
       .maybeSingle();
     if (error) return null;
     return (data as EmotionLogRow) || null;
@@ -320,11 +326,11 @@ export class ServerSupabaseService {
     shortSummary?: string;
   }): Promise<EmotionLogRow | null> {
     const dateString =
-      typeof log.date === "string"
+      typeof log.date === 'string'
         ? log.date
-        : log.date.toISOString().split("T")[0];
+        : this.formatLocalDateString(log.date);
     const { data, error } = await getSupabaseServer()
-      .from("emotion_logs")
+      .from('emotion_logs')
       .insert({
         id: log.id,
         user_id: log.userId,
@@ -345,9 +351,9 @@ export class ServerSupabaseService {
     updates: Partial<EmotionLogRow>
   ): Promise<EmotionLogRow | null> {
     const { data, error } = await getSupabaseServer()
-      .from("emotion_logs")
+      .from('emotion_logs')
       .update(updates)
-      .eq("id", id)
+      .eq('id', id)
       .select()
       .single();
     if (error) return null;

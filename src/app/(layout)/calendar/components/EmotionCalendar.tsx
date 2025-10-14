@@ -1,12 +1,12 @@
-import { useState, useEffect } from "react";
-import Image from "next/image";
+import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import {
   EmotionData,
   emotionColors,
   emotionLabels,
   monthNames,
-} from "@/lib/calendar-types";
-import { loadMonthlyEmotionData, emotionToSvg } from "@/lib/emotion-service";
+} from '@/lib/calendar-types';
+import { loadMonthlyEmotionData, emotionToSvg } from '@/lib/emotion-service';
 
 interface EmotionCalendarProps {
   userId: string;
@@ -74,8 +74,8 @@ export default function EmotionCalendar({
       );
       // 타임존 이슈 해결: UTC 변환 없이 직접 문자열 생성
       const year = currentDate.getFullYear();
-      const month = String(currentDate.getMonth() + 1).padStart(2, "0");
-      const dayStr = String(day).padStart(2, "0");
+      const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+      const dayStr = String(day).padStart(2, '0');
       const dateString = `${year}-${month}-${dayStr}`;
       const emotion = emotionData.find((d) => d.date === dateString);
 
@@ -84,7 +84,7 @@ export default function EmotionCalendar({
           key={day}
           onClick={() => handleDateClick(date)}
           className={`p-2 cursor-pointer hover:bg-gray-100 rounded-lg transition-colors
-            ${selectedDate?.getDate() === day ? "ring-2 ring-green-500" : ""}`}
+            ${selectedDate?.getDate() === day ? 'ring-2 ring-green-500' : ''}`}
         >
           <div className="text-center">
             <span className="text-sm">{day}</span>
@@ -132,7 +132,7 @@ export default function EmotionCalendar({
       </div>
 
       <div className="grid grid-cols-7 gap-1 mb-2">
-        {["일", "월", "화", "수", "목", "금", "토"].map((day) => (
+        {['일', '월', '화', '수', '목', '금', '토'].map((day) => (
           <div key={day} className="text-center text-gray-500 text-sm">
             {day}
           </div>
@@ -149,8 +149,8 @@ export default function EmotionCalendar({
           {(() => {
             // 타임존 이슈 해결: 선택된 날짜를 로컬 기준으로 문자열 생성
             const year = selectedDate.getFullYear();
-            const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
-            const day = String(selectedDate.getDate()).padStart(2, "0");
+            const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+            const day = String(selectedDate.getDate()).padStart(2, '0');
             const selectedDateString = `${year}-${month}-${day}`;
             return emotionData.find((d) => d.date === selectedDateString);
           })() ? (
@@ -163,10 +163,10 @@ export default function EmotionCalendar({
                       const year = selectedDate.getFullYear();
                       const month = String(
                         selectedDate.getMonth() + 1
-                      ).padStart(2, "0");
+                      ).padStart(2, '0');
                       const day = String(selectedDate.getDate()).padStart(
                         2,
-                        "0"
+                        '0'
                       );
                       const selectedDateString = `${year}-${month}-${day}`;
                       const emotionLog = emotionData.find(
@@ -174,7 +174,7 @@ export default function EmotionCalendar({
                       );
                       return emotionLog
                         ? emotionToSvg(emotionLog.emotion)
-                        : "/images/emotion/soso.svg";
+                        : '/images/emotion/soso.svg';
                     })()}
                     alt="감정"
                     width={48}
@@ -184,22 +184,32 @@ export default function EmotionCalendar({
                 <div>
                   <div className="text-sm text-gray-500">오늘의 감정</div>
 
-                  <div className="text-lg font-medium text-gray-800">
-                    {(() => {
-                      const year = selectedDate.getFullYear();
-                      const month = String(
-                        selectedDate.getMonth() + 1
-                      ).padStart(2, "0");
-                      const day = String(selectedDate.getDate()).padStart(
-                        2,
-                        "0"
-                      );
-                      const selectedDateString = `${year}-${month}-${day}`;
-                      return emotionData.find(
-                        (d) => d.date === selectedDateString
-                      )?.summary;
-                    })()}
-                  </div>
+                  {(() => {
+                    const year = selectedDate.getFullYear();
+                    const month = String(selectedDate.getMonth() + 1).padStart(
+                      2,
+                      '0'
+                    );
+                    const day = String(selectedDate.getDate()).padStart(2, '0');
+                    const selectedDateString = `${year}-${month}-${day}`;
+                    const log = emotionData.find(
+                      (d) => d.date === selectedDateString
+                    );
+                    if (!log) return null;
+                    const label = emotionLabels[log.emotion];
+                    const percentMatch = log.summary.match(/(\d+)%/);
+                    const percent = percentMatch ? percentMatch[1] : undefined;
+                    return (
+                      <div className="text-lg font-medium text-gray-800">
+                        {label}
+                        {percent ? (
+                          <span className="ml-1 text-gray-500 text-sm">
+                            {percent}%
+                          </span>
+                        ) : null}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -213,14 +223,14 @@ export default function EmotionCalendar({
                     const year = selectedDate.getFullYear();
                     const month = String(selectedDate.getMonth() + 1).padStart(
                       2,
-                      "0"
+                      '0'
                     );
-                    const day = String(selectedDate.getDate()).padStart(2, "0");
+                    const day = String(selectedDate.getDate()).padStart(2, '0');
                     const selectedDateString = `${year}-${month}-${day}`;
                     const emotionLog = emotionData.find(
                       (d) => d.date === selectedDateString
                     );
-                    return emotionLog?.short_summary || "대화 내용이 없습니다.";
+                    return emotionLog?.short_summary || '대화 내용이 없습니다.';
                   })()}
                 </p>
               </div>

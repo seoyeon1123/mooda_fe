@@ -1,4 +1,4 @@
-import { Message } from "./chat-types";
+import { Message } from './chat-types';
 
 export interface ChatResponse {
   userMessage: Message;
@@ -18,16 +18,16 @@ export const loadConversationHistoryByDate = async (
   date: Date
 ): Promise<Message[]> => {
   try {
-    const dateString = date.toISOString().split("T")[0]; // YYYY-MM-DD 형식
+    const dateString = date.toISOString().split('T')[0]; // YYYY-MM-DD 형식
 
     const response = await fetch(`/api/socket`, {
-      method: "POST",
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
       },
-      credentials: "include",
+      credentials: 'include',
       body: JSON.stringify({
-        action: "get-conversation-history-by-date",
+        action: 'get-conversation-history-by-date',
         data: { userId, personalityId, date: dateString },
       }),
     });
@@ -40,7 +40,7 @@ export const loadConversationHistoryByDate = async (
     }
     return [];
   } catch (error) {
-    console.error("날짜별 대화 기록 불러오기 오류:", error);
+    console.error('날짜별 대화 기록 불러오기 오류:', error);
     return [];
   }
 };
@@ -52,13 +52,13 @@ export const getConversationDates = async (
 ): Promise<string[]> => {
   try {
     const response = await fetch(`/api/socket`, {
-      method: "POST",
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
       },
-      credentials: "include",
+      credentials: 'include',
       body: JSON.stringify({
-        action: "get-conversation-dates",
+        action: 'get-conversation-dates',
         data: { userId, personalityId },
       }),
     });
@@ -71,7 +71,7 @@ export const getConversationDates = async (
     }
     return [];
   } catch (error) {
-    console.error("대화 날짜 목록 불러오기 오류:", error);
+    console.error('대화 날짜 목록 불러오기 오류:', error);
     return [];
   }
 };
@@ -81,15 +81,19 @@ export const loadConversationHistory = async (
   personalityId: string
 ): Promise<Message[]> => {
   try {
+    // 오늘 날짜의 대화만 불러오도록 수정
+    const today = new Date();
+    const dateString = today.toISOString().split('T')[0]; // YYYY-MM-DD 형식
+
     const response = await fetch(`/api/socket`, {
-      method: "POST",
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
       },
-      credentials: "include",
+      credentials: 'include',
       body: JSON.stringify({
-        action: "get-conversation-history",
-        data: { userId, personalityId },
+        action: 'get-conversation-history-by-date',
+        data: { userId, personalityId, date: dateString },
       }),
     });
 
@@ -101,7 +105,7 @@ export const loadConversationHistory = async (
     }
     return [];
   } catch (error) {
-    console.error("대화 기록 불러오기 오류:", error);
+    console.error('대화 기록 불러오기 오류:', error);
     return [];
   }
 };
@@ -113,11 +117,11 @@ export const addSystemMessage = async (
 ): Promise<Message | null> => {
   try {
     const response = await fetch(`/api/socket`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({
-        action: "add-system-message",
+        action: 'add-system-message',
         data: { userId, personalityId, content },
       }),
     });
@@ -126,7 +130,7 @@ export const addSystemMessage = async (
     if (result?.success) return result.message as Message;
     return null;
   } catch (e) {
-    console.error("시스템 메시지 저장 실패:", e);
+    console.error('시스템 메시지 저장 실패:', e);
     return null;
   }
 };
@@ -138,57 +142,57 @@ export const sendChatMessage = async (
 ): Promise<ChatResponse | null> => {
   try {
     // 세션 확인
-    const session = await fetch("/api/auth/session");
+    const session = await fetch('/api/auth/session');
     if (!session.ok) {
-      throw new Error("인증이 필요합니다");
+      throw new Error('인증이 필요합니다');
     }
 
-    console.log("Sending message with data:", {
-      action: "send-message",
+    console.log('Sending message with data:', {
+      action: 'send-message',
       data: { message, userId, personalityId },
     });
 
     const response = await fetch(`/api/socket`, {
-      method: "POST",
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
       },
-      credentials: "include",
+      credentials: 'include',
       body: JSON.stringify({
-        action: "send-message",
+        action: 'send-message',
         data: { message, userId, personalityId },
       }),
     });
 
     if (!response.ok) {
       console.error(
-        "Server response not OK:",
+        'Server response not OK:',
         response.status,
         response.statusText
       );
-      let errorMessage = "메시지 전송 실패";
+      let errorMessage = '메시지 전송 실패';
       try {
         const errorResponse = await response.json();
-        console.error("Error response:", errorResponse);
+        console.error('Error response:', errorResponse);
         errorMessage = errorResponse.error || errorMessage;
       } catch {
         const errorText = await response.text();
-        console.error("Error response text:", errorText);
+        console.error('Error response text:', errorText);
       }
       throw new Error(errorMessage);
     }
 
     const result: ChatResponse = await response.json();
-    console.log("Server response:", result);
+    console.log('Server response:', result);
 
     if (!result.success) {
-      console.error("Server indicated failure:", result);
+      console.error('Server indicated failure:', result);
       return null;
     }
 
     return result;
   } catch (error) {
-    console.error("메시지 전송 오류:", error);
+    console.error('메시지 전송 오류:', error);
     throw error;
   }
 };

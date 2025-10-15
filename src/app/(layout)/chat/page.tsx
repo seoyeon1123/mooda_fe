@@ -38,7 +38,10 @@ export default function ChatTab() {
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true); // 메시지 전송/요청 처리 로딩
   const [isInitializing, setIsInitializing] = useState(true); // 초기/날짜 전환 로딩
-  const [lastMidnight, setLastMidnight] = useState<Date>(() => new Date());
+  const [currentDate, setCurrentDate] = useState<string>(() => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  });
   const [currentPersonality, setCurrentPersonality] = useState<
     AIPersonality | undefined
   >();
@@ -118,7 +121,7 @@ export default function ChatTab() {
           createdAt: new Date(),
         };
 
-        // 실제 대화 기록을 불러오기 (전체 타임라인: 캐릭터 구분 없이)
+        // 실제 대화 기록을 불러오기 (오늘 날짜만)
         const conversations = await loadConversationHistory(
           session.user.id,
           '' as unknown as string
@@ -294,7 +297,7 @@ export default function ChatTab() {
         // 스토어에서 직접 최신 상태를 조회하여 의존성 문제를 회피합니다.
         const personalityChanged = useUserStore.getState().personalityChanged;
 
-        // 실제 대화 기록을 불러오기
+        // 실제 대화 기록을 불러오기 (오늘 날짜만)
         const conversations = await loadConversationHistory(
           session.user.id,
           '' as unknown as string
@@ -495,47 +498,49 @@ export default function ChatTab() {
     }
   };
 
-  // 자정 체크
+  // 날짜 변경 감지 및 채팅 초기화
   useEffect(() => {
-    const now = new Date();
-    const startOfToday = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate()
-    );
+    const checkDateChange = () => {
+      const now = new Date();
+      const todayString = now.toISOString().split('T')[0];
 
-    if (lastMidnight.getTime() < startOfToday.getTime()) {
-      const midnightMessage: Message = {
-        id: `system_${Date.now()}`,
-        role: 'system',
-        content: `--- ${now.toLocaleDateString()} ---`,
-        createdAt: now,
-      };
-      setMessages((prev) => [...prev, midnightMessage]);
-      setLastMidnight(now);
-    }
+      // 날짜가 바뀌었는지 확인
+      if (currentDate !== todayString) {
+        console.log('📅 날짜 변경 감지:', currentDate, '->', todayString);
 
-    const timer = setInterval(() => {
-      const newNow = new Date();
-      const newStartOfToday = new Date(
-        newNow.getFullYear(),
-        newNow.getMonth(),
-        newNow.getDate()
-      );
-      if (lastMidnight.getTime() < newStartOfToday.getTime()) {
-        const midnightMessage: Message = {
-          id: `system_${Date.now()}`,
-          role: 'system',
-          content: `--- ${newNow.toLocaleDateString()} ---`,
-          createdAt: newNow,
-        };
-        setMessages((prev) => [...prev, midnightMessage]);
-        setLastMidnight(newNow);
+        // 새로운 날짜로 업데이트
+        setCurrentDate(todayString);
+
+        // 채팅 완전 초기화
+        if (currentPersonality) {
+          const welcomeMessage: Message = {
+            id: String(Date.now()),
+            role: 'ai',
+            content: `안녕! 나는 ${currentPersonality.name}야! ${currentPersonality.shortDescription}`,
+            createdAt: now,
+          };
+
+          const todayHeader: Message = {
+            id: `date-${now.toISOString()}`,
+            role: 'system',
+            content: `--- ${now.toLocaleDateString()} ---`,
+            createdAt: now,
+          };
+
+          setMessages([todayHeader, welcomeMessage]);
+          console.log('🔄 새로운 날짜로 채팅 초기화 완료');
+        }
       }
-    }, 60000);
+    };
+
+    // 즉시 체크
+    checkDateChange();
+
+    // 1분마다 체크
+    const timer = setInterval(checkDateChange, 60000);
 
     return () => clearInterval(timer);
-  }, [lastMidnight]);
+  }, [currentDate, currentPersonality]);
 
   // 메시지가 변경될 때마다 스토어에 저장
   useEffect(() => {

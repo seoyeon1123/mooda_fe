@@ -1,5 +1,16 @@
 import { getSupabaseServer } from './supabase-server';
 
+export type DiaryEntryRow = {
+  id: string;
+  user_id: string;
+  date: string;
+  emotion: string;
+  title: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type UserRow = {
   id: string;
   email: string | null;
@@ -358,5 +369,104 @@ export class ServerSupabaseService {
       .single();
     if (error) return null;
     return data as EmotionLogRow;
+  }
+
+  async createDiaryEntry(entry: {
+    id: string;
+    userId: string;
+    date: Date | string;
+    emotion: string;
+    title: string;
+    content: string;
+  }): Promise<DiaryEntryRow | null> {
+    const { data, error } = await getSupabaseServer()
+      .from('diary_entries')
+      .insert({
+        id: entry.id,
+        user_id: entry.userId,
+        date: entry.date,
+        emotion: entry.emotion,
+        title: entry.title,
+        content: entry.content,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('일기 생성 오류', error);
+      return null;
+    }
+
+    return data as DiaryEntryRow;
+  }
+
+  async getDiaryEntries(
+    userId: string,
+    limit?: number,
+    offset?: number
+  ): Promise<DiaryEntryRow[]> {
+    let query = getSupabaseServer()
+      .from('diary_entries')
+      .select('*')
+      .eq('user_id', userId)
+      .order('date', { ascending: false });
+
+    if (limit) query = query.limit(limit);
+    if (offset) query = query.range(offset, offset + (limit ?? 0));
+
+    const { data, error } = await query;
+    if (error || !data) return [];
+    return data as DiaryEntryRow[];
+  }
+
+  async getDiaryEntryById(
+    id: string,
+    userId: string
+  ): Promise<DiaryEntryRow | null> {
+    const { data, error } = await getSupabaseServer()
+      .from('diary_entries')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('일기 조회 오류', error);
+      return null;
+    }
+    return data as DiaryEntryRow | null;
+  }
+
+  async updateDiaryEntry(
+    id: string,
+    userId: string,
+    updates: {
+      emotion?: string;
+      title?: string;
+      content?: string;
+    }
+  ): Promise<DiaryEntryRow | null> {
+    const { data, error } = await getSupabaseServer()
+      .from('diary_entries')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select()
+      .single();
+    if (error) return null;
+    return data as DiaryEntryRow;
+  }
+  // 일기 삭제
+  async deleteDiaryEntry(id: string, userId: string): Promise<boolean> {
+    const { error } = await getSupabaseServer()
+      .from('diary_entries')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId);
+
+    return !error;
   }
 }

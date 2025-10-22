@@ -56,9 +56,20 @@ export default function ChatTab() {
     created_at?: string;
     createdAt?: string | Date;
     personality_id?: string | null;
+    icon_type?: string | null;
   }): Message => {
     const role: Message['role'] =
       conv.role === 'user' ? 'user' : conv.role === 'system' ? 'system' : 'ai';
+
+    // iconType 결정: 서버에서 온 값 또는 personality_id로 찾기
+    let iconType: string | undefined;
+    if (conv.icon_type) {
+      iconType = conv.icon_type;
+    } else if (conv.personality_id) {
+      const p = AI_PERSONALITIES.find((x) => x.id === conv.personality_id);
+      iconType = p?.iconType;
+    }
+
     return {
       id: conv.id,
       role,
@@ -66,6 +77,7 @@ export default function ChatTab() {
       createdAt: new Date(conv.created_at || conv.createdAt || Date.now()),
       personalityId: conv.personality_id ?? null,
       characterName: getPersonName(conv.personality_id ?? null) || undefined,
+      iconType,
     };
   };
 
@@ -472,6 +484,7 @@ export default function ChatTab() {
               characterName: src.personality_id
                 ? getPersonName(src.personality_id) || undefined
                 : currentPersonality?.name,
+              iconType: currentPersonality?.iconType,
             };
             console.log('🔄 변환된 메시지:', message);
             return message as Message;
@@ -574,7 +587,11 @@ export default function ChatTab() {
         </div>
       ) : (
         <>
-          <MessageList messages={messages} isLoading={isLoading} />
+          <MessageList
+            messages={messages}
+            isLoading={isLoading}
+            currentPersonality={currentPersonality}
+          />
           <ChatInput
             inputMessage={inputMessage}
             setInputMessage={setInputMessage}

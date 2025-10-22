@@ -33,11 +33,11 @@ export function NewDiaryDialog({
     if (!title.trim() || !content.trim()) return;
 
     onSave({
-      date: new Date(), // selectedDate 대신 현재 날짜 사용
-      emotion: emotion, // selectedEmotion 대신 emotion 사용
+      date: new Date(),
+      emotion: emotion,
       title: title.trim(),
       content: content.trim(),
-      userId: user?.id || '', // 이 부분 추가 필요
+      userId: user?.id || '',
     });
 
     // Reset form

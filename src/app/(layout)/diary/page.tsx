@@ -58,13 +58,15 @@ export default function DiaryPage() {
   const displayedEntries = filteredEntries.slice(0, displayCount);
   const hasMore = displayCount < filteredEntries.length;
 
-  const handleAddEntry = (entry: Omit<DiaryEntry, 'id'>) => {
-    const newEntry = {
-      ...entry,
-      id: Date.now().toString(),
-    };
-    setEntries([newEntry, ...entries]);
-    setIsDialogOpen(false);
+  const handleAddEntry = async (entry: Omit<DiaryEntry, 'id'>) => {
+    try {
+      const newEntry = await DiaryService.createEntry(entry);
+      setEntries([newEntry, ...entries]);
+      setIsDialogOpen(false);
+    } catch (error) {
+      console.error('일기 저장 중 오류:', error);
+      alert('일기 저장에 실패했습니다. 다시 시도해주세요.');
+    }
   };
 
   const handleLoadMore = () => {

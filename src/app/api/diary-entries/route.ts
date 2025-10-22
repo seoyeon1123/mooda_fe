@@ -56,9 +56,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { userId, date, emotion, title, content } = body;
+    const { userId, emotion, title, content } = body;
 
-    if (!userId || !date || !emotion || !title || !content) {
+    if (!userId || !emotion || !title || !content) {
       return NextResponse.json(
         { error: '필수 필드가 누락되었습니다.' },
         { status: 400 }
@@ -66,10 +66,11 @@ export async function POST(request: NextRequest) {
     }
 
     const svc = new ServerSupabaseService();
+
     const entry = await svc.createDiaryEntry({
       id: crypto.randomUUID(),
       userId,
-      date: new Date(date),
+      date: new Date(), // UTC 시간으로 저장 (클라이언트가 로컬 시간으로 변환)
       emotion,
       title,
       content,

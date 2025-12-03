@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/Button';
-import { Plus } from 'lucide-react';
 import { DiaryEntryCard } from './components/DiaryEntryCard';
+import { DiaryEntrySkeleton } from './components/DiaryEntrySkeleton';
 import { NewDiaryDialog } from './components/NewDiaryDialog';
+import DiaryHeader from './components/DiaryHeader';
 import { DiaryEntry, DiaryService } from '@/lib/diary-service';
 import useUserStore from '@/store/userStore';
 
@@ -23,6 +24,7 @@ export default function DiaryPage() {
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const { user } = useUserStore();
 
   const [selectedEmotion, setSelectedEmotion] = useState<string | null>(null);
@@ -69,9 +71,31 @@ export default function DiaryPage() {
     }
   };
 
-  const handleLoadMore = () => {
-    setDisplayCount((prev) => prev + 6);
-  };
+  // 무한스크롤: 스크롤이 하단에 가까워지면 자동으로 더 불러오기
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollElement = document.querySelector('main');
+      if (!scrollElement) return;
+
+      const { scrollTop, scrollHeight, clientHeight } = scrollElement;
+      const isNearBottom = scrollTop + clientHeight >= scrollHeight - 200; // 하단 200px 전에 로드
+
+      if (isNearBottom && hasMore && !loading && !isLoadingMore) {
+        setIsLoadingMore(true);
+        // 약간의 딜레이를 주어 자연스러운 로딩 효과
+        setTimeout(() => {
+          setDisplayCount((prev) => prev + 6);
+          setIsLoadingMore(false);
+        }, 300);
+      }
+    };
+
+    const scrollElement = document.querySelector('main');
+    if (scrollElement) {
+      scrollElement.addEventListener('scroll', handleScroll);
+      return () => scrollElement.removeEventListener('scroll', handleScroll);
+    }
+  }, [hasMore, loading, isLoadingMore]);
 
   if (loading) {
     return (
@@ -86,25 +110,10 @@ export default function DiaryPage() {
 
   return (
     <div className="flex h-full flex-col bg-stone-50">
+      <DiaryHeader onNewEntryClick={() => setIsDialogOpen(true)} />
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto px-4 pb-24 pt-4">
         <div className="mx-auto ">
-          <div className="mb-6 flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold">감정 일기</h2>
-              <p className="text-sm text-muted-foreground">
-                오늘의 감정을 기록해보세요
-              </p>
-            </div>
-            <Button
-              onClick={() => setIsDialogOpen(true)}
-              className="rounded-full bg-green-600 text-primary-foreground shadow-lg hover:bg-green-600/90 cursor-pointer"
-              size="lg"
-            >
-              <Plus className="mr-2 h-5 w-5" />새 일기
-            </Button>
-          </div>
-
           <div className="mb-6">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-sm font-semibold text-muted-foreground">
@@ -164,17 +173,7 @@ export default function DiaryPage() {
                 {displayedEntries.map((entry) => (
                   <DiaryEntryCard key={entry.id} entry={entry} />
                 ))}
-                {hasMore && (
-                  <div className="flex justify-center pt-4">
-                    <Button
-                      onClick={handleLoadMore}
-                      variant="outline"
-                      className="rounded-full border-2 px-8 py-5 font-semibold shadow-sm transition-all hover:scale-105 hover:border-primary hover:bg-primary/5 bg-transparent"
-                    >
-                      더보기 ({filteredEntries.length - displayCount}개 남음)
-                    </Button>
-                  </div>
-                )}
+                {hasMore && isLoadingMore && <DiaryEntrySkeleton />}
               </>
             )}
           </div>

@@ -58,7 +58,22 @@ export async function POST(request: NextRequest) {
       mbtiTypes: string;
       systemPrompt: string;
     };
+    
     const svc = new ServerSupabaseService();
+    const userId = body.userId;
+    
+    // 커스텀 AI 개수 확인 (최대 10개 제한)
+    const existingAIs = await svc.getCustomAIPersonalitiesByUserId(userId);
+    if (existingAIs && existingAIs.length >= 10) {
+      return NextResponse.json(
+        { 
+          error: '최대 개수 도달',
+          message: '커스텀 Moo는 최대 10개까지 만들 수 있습니다. 기존 Moo를 삭제한 후 다시 시도해주세요.'
+        },
+        { status: 400 }
+      );
+    }
+    
     const created = await svc.createCustomAIPersonality({
       id: crypto.randomUUID(),
       userId: body.userId,

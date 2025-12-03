@@ -566,8 +566,13 @@ export default function ChatTab() {
     }
   }, [messages, setChatMessages]);
 
-  // 세션이 로딩 중일 때만 전체 로딩 UI 표시 (초기화 중에는 배너로 처리)
-  if (status === 'loading') {
+  // 세션 로딩, 하이드레이션 대기, 캐릭터 초기화 중일 때 전체 로딩 UI 표시
+  if (
+    status === 'loading' ||
+    !isHydrated ||
+    !currentPersonality ||
+    isInitializing
+  ) {
     return <ChatLoading />;
   }
 
@@ -578,29 +583,18 @@ export default function ChatTab() {
         showCalendar={showCalendar}
         setShowCalendar={setShowCalendar}
       />
-      {isInitializing ? (
-        <div className="flex-1 flex items-center justify-center p-4">
-          <div className="rounded-lg border border-amber-300 bg-amber-50 text-amber-800 px-4 py-3 text-sm flex items-center gap-2 shadow-sm">
-            <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-            <span>캐릭터 변경으로 대화 초기화 중...</span>
-          </div>
-        </div>
-      ) : (
-        <>
-          <MessageList
-            messages={messages}
-            isLoading={isLoading}
-            currentPersonality={currentPersonality}
-          />
-          <ChatInput
-            inputMessage={inputMessage}
-            setInputMessage={setInputMessage}
-            sendMessage={handleSendMessage}
-            isLoading={isLoading}
-            canSendToday={canSendToday}
-          />
-        </>
-      )}
+      <MessageList
+        messages={messages}
+        isLoading={isLoading}
+        currentPersonality={currentPersonality}
+      />
+      <ChatInput
+        inputMessage={inputMessage}
+        setInputMessage={setInputMessage}
+        sendMessage={handleSendMessage}
+        isLoading={isLoading}
+        canSendToday={canSendToday}
+      />
 
       {/* 달력 모달 */}
       <CalendarModal

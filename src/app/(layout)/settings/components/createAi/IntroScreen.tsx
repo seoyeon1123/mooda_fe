@@ -1,13 +1,19 @@
 "use client";
 
 import { Button } from "@/components/ui/Button";
-import { Play } from "lucide-react";
+import { Play, AlertCircle } from "lucide-react";
 
 interface IntroScreenProps {
   onStart: () => void;
+  isAtLimit?: boolean;
+  currentCount?: number;
 }
 
-export default function IntroScreen({ onStart }: IntroScreenProps) {
+export default function IntroScreen({ 
+  onStart, 
+  isAtLimit = false, 
+  currentCount = 0 
+}: IntroScreenProps) {
   return (
     <div className=" bg-stone-100 flex flex-col justify-between overflow-hidden">
       <div className="flex flex-col items-center px-6 pt-20">
@@ -22,6 +28,24 @@ export default function IntroScreen({ onStart }: IntroScreenProps) {
             성향의 AI 친구를 만들어보세요
           </p>
         </div>
+
+        {isAtLimit && (
+          <div className="w-full mb-4 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-amber-800 mb-1">
+                  최대 개수에 도달했습니다
+                </p>
+                <p className="text-xs text-amber-700">
+                  커스텀 Moo는 최대 10개까지 만들 수 있습니다.
+                  <br />
+                  기존 Moo를 삭제한 후 다시 시도해주세요. (현재: {currentCount}/10)
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="bg-white rounded-3xl p-3 mb-3 shadow-sm w-full">
           <div className="space-y-3">
@@ -54,10 +78,15 @@ export default function IntroScreen({ onStart }: IntroScreenProps) {
       <div className="px-6 py-16">
         <Button
           onClick={onStart}
-          className="w-full h-16 rounded-3xl text-lg font-semibold bg-green-700 hover:bg-green-800 text-white shadow-lg"
+          disabled={isAtLimit}
+          className={`w-full h-16 rounded-3xl text-lg font-semibold shadow-lg ${
+            isAtLimit
+              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              : 'bg-green-700 hover:bg-green-800 text-white'
+          }`}
         >
           <Play className="w-5 h-5 mr-2" />
-          시작하기
+          {isAtLimit ? '최대 개수 도달' : '시작하기'}
         </Button>
       </div>
     </div>

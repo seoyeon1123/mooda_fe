@@ -33,12 +33,6 @@ export default function ChatLoading() {
               </div>
             </div>
           </div>
-
-          <div className="text-center">
-            <p className="font-sans text-base text-muted-foreground">
-              메시지를 불러오는 중...
-            </p>
-          </div>
         </div>
       </main>
     </div>

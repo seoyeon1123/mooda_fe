@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { generateSystemPrompt } from "@/lib/prompt";
 import { getSession } from "next-auth/react";
 import { XIcon } from "lucide-react";
@@ -41,6 +41,34 @@ export default function CreateAIModal({
   });
   const [mooName, setMooName] = useState("");
   const [showSummary, setShowSummary] = useState(false);
+  const [customAICount, setCustomAICount] = useState(0);
+  const [isAtLimit, setIsAtLimit] = useState(false);
+
+  // 커스텀 AI 개수 확인
+  useEffect(() => {
+    const checkCustomAICount = async () => {
+      if (!isOpen) return;
+      
+      try {
+        const session = await getSession();
+        if (!session?.user?.id) return;
+
+        const response = await fetch(`/api/custom-ai?userId=${session.user.id}`);
+        if (response.ok) {
+          const data = await response.json();
+          const count = Array.isArray(data) ? data.length : 0;
+          setCustomAICount(count);
+          setIsAtLimit(count >= 10);
+        }
+      } catch (error) {
+        console.error('커스텀 AI 개수 확인 실패:', error);
+      }
+    };
+
+    if (isOpen) {
+      checkCustomAICount();
+    }
+  }, [isOpen]);
 
   const handleTypeSelect = (
     category: keyof MBTIType,
@@ -111,6 +139,11 @@ export default function CreateAIModal({
       });
 
       if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        if (response.status === 400 && errorData.message) {
+          alert(errorData.message);
+          return;
+        }
         throw new Error("moo 생성에 실패했습니다.");
       }
 
@@ -182,7 +215,17 @@ export default function CreateAIModal({
         <div className="overflow-y-auto max-h-[calc(90vh-80px)]">
           {/* 인트로 화면 */}
           {showIntro ? (
-            <IntroScreen onStart={() => setShowIntro(false)} />
+            <IntroScreen 
+              onStart={() => {
+                if (isAtLimit) {
+                  alert('커스텀 Moo는 최대 10개까지 만들 수 있습니다.\n기존 Moo를 삭제한 후 다시 시도해주세요.');
+                  return;
+                }
+                setShowIntro(false);
+              }}
+              isAtLimit={isAtLimit}
+              currentCount={customAICount}
+            />
           ) : showSummary ? (
             /* 요약 보기 모달 */
             <SummaryScreen

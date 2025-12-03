@@ -8,13 +8,6 @@ interface DiaryEntryCardProps {
 export function DiaryEntryCard({ entry }: DiaryEntryCardProps) {
   const getTimeAgo = (date: Date) => {
     const now = new Date();
-    console.log('현재 시간:', now.toISOString(), now.toString());
-    console.log('일기 시간:', date.toISOString(), date.toString());
-    console.log(
-      '시간 차이(분):',
-      Math.floor((now.getTime() - date.getTime()) / (1000 * 60))
-    );
-
     const diffInMinutes = Math.floor(
       (now.getTime() - date.getTime()) / (1000 * 60)
     );

@@ -322,28 +322,36 @@ ${conversationContext}
 
 **요약 작성 규칙**:
 1. 80-150자 분량
-2. 대화의 핵심 내용과 흐름을 담기
-   - 사용자가 무엇을 느꼈는지 (짜증, 화남, 기쁨 등)
-   - 무슨 일이 있었는지 (일 많음, 스트레스 등)
-   - AI가 무엇을 추천했는지 (구체적 음식명 2개까지)
-3. "${personaName || 'AI'}가 ~을(를) 추천해줬어요" 형식 사용
-4. 자연스러운 한국어로 작성
+2. 대화의 핵심 내용과 흐름을 구체적으로 담기
+   - 사용자가 어떤 고민이나 상황을 이야기했는지 (구체적인 내용 포함)
+   - 사용자가 무엇을 느꼈는지 (짜증, 화남, 기쁨, 고민, 갈팡질팡 등)
+   - ${personaName || 'AI'}가 어떤 조언이나 도움을 줬는지 (구체적인 조언 내용)
+3. 자연스러운 한국어로 작성
+4. 대화의 핵심 주제를 명확히 드러내기
 
 **좋은 요약 예시**:
+- "어린이집 선생님이 3년간 퇴사를 고민해 갈팡질팡하자, ${
+    personaName || 'AI'
+  }가 구체적인 계획을 세우라고 조언해줬어요."
 - "오늘 일이 너무 많아서 짜증났는데, ${
     personaName || 'AI'
   }가 매운 떡볶이를 추천해줬어요."
-- "집에서도 일해야 해서 화가 났지만, ${
+- "친구와 다퉜어서 속상했는데, ${
     personaName || 'AI'
-  }와 떡볶이 얘기하면서 기분이 풀렸어요."
+  }가 직접 대화하라고 조언해줬어요."
 - "스트레스 받는 하루였는데 ${
     personaName || 'AI'
   }가 치킨이랑 피자를 추천해줘서 위로받았어요."
 
-**주의사항**:
+**중요**:
+- 사용자가 구체적으로 언급한 상황(직장, 인간관계, 고민 등)을 반드시 포함하세요
+- ${personaName || 'AI'}의 조언이나 추천 내용을 구체적으로 언급하세요
+- 음식 추천이 없어도 대화 내용을 요약하세요
 - AI의 말투("아이고", "진짜?", "ㄱㄱ" 등)를 그대로 쓰지 마세요
 - 이모지는 절대 포함하지 마세요
-- 사용자 감정을 정확히 반영하세요 (화남, 짜증, 스트레스 등)
+- "오늘은 ${
+    personaName || 'AI'
+  }와 대화하며 하루를 보냈어요" 같은 모호한 표현은 피하세요
 
 요약만 출력하세요:`;
 
@@ -415,18 +423,73 @@ function generateFallbackSummary(
     .map((h) => h.content.trim())
     .filter(Boolean);
 
-  // 사용자 감정 분석
+  // 사용자 메시지에서 핵심 키워드 추출
   const allUserText = userMessages.join(' ');
-  let emotionText = '';
 
+  // 구체적인 상황 키워드 추출 (더 구체적으로)
+  let situationText = '';
+  let specificDetail = '';
+
+  // 구체적인 직업/상황 추출
+  if (/(어린이집|유치원|선생님|교사|보육교사)/.test(allUserText)) {
+    specificDetail = '어린이집 선생님이';
+  } else if (/(회사원|직장인|사원|직원)/.test(allUserText)) {
+    specificDetail = '직장 동료가';
+  } else if (/(친구|동기|후배|선배)/.test(allUserText)) {
+    specificDetail = '친구가';
+  }
+
+  // 시간 표현 추출
+  let timeDetail = '';
+  if (/(\d+)년/.test(allUserText)) {
+    const years = allUserText.match(/(\d+)년/);
+    if (years) timeDetail = `${years[1]}년간`;
+  } else if (/(\d+)개월/.test(allUserText)) {
+    const months = allUserText.match(/(\d+)개월/);
+    if (months) timeDetail = `${months[1]}개월간`;
+  }
+
+  if (/(퇴사|이직|직장|회사|일|업무)/.test(allUserText)) {
+    if (specificDetail && timeDetail) {
+      situationText = `${specificDetail} ${timeDetail} 퇴사를 고민해`;
+    } else if (specificDetail) {
+      situationText = `${specificDetail} 퇴사를 고민해`;
+    } else {
+      situationText = '직장 관련 고민을';
+    }
+  } else if (/(친구|다퉜|싸움|관계|인간관계)/.test(allUserText)) {
+    situationText = '인간관계 고민을';
+  } else if (/(시험|공부|학원|학교|수능)/.test(allUserText)) {
+    situationText = '공부 관련 고민을';
+  } else if (/(가족|부모|형제|자매)/.test(allUserText)) {
+    situationText = '가족 관련 고민을';
+  } else if (/(고민|걱정|문제|어려움)/.test(allUserText)) {
+    situationText = '고민을';
+  }
+
+  // 사용자 감정 분석
+  let emotionText = '';
   if (/(개빡|짜증|화|열받|빡)/.test(allUserText)) {
     emotionText = '짜증나서';
   } else if (/(힘들|우울|슬프|외로)/.test(allUserText)) {
     emotionText = '힘들어서';
-  } else if (/(불안|걱정)/.test(allUserText)) {
-    emotionText = '불안해서';
+  } else if (/(갈팡질팡|고민|불안|걱정)/.test(allUserText)) {
+    emotionText = '갈팡질팡하거나 고민이 많아서';
   } else if (/(좋|행복|기쁨)/.test(allUserText)) {
     emotionText = '기분 좋아서';
+  }
+
+  // AI 조언 키워드 추출
+  const allAiText = aiMessages.join(' ');
+  let adviceText = '';
+  if (/(계획|세우|정리|명확)/.test(allAiText)) {
+    adviceText = '구체적인 계획을 세우라고';
+  } else if (/(대화|이야기|말|설명)/.test(allAiText)) {
+    adviceText = '직접 대화하라고';
+  } else if (/(추천|먹|메뉴|음식)/.test(allAiText)) {
+    adviceText = '음식을 추천해줬어요';
+  } else {
+    adviceText = '조언을 해줬어요';
   }
 
   // 음식 추천 감지
@@ -435,18 +498,38 @@ function generateFallbackSummary(
 
   if (recommendedFoods.length > 0) {
     const foodList = recommendedFoods.slice(0, 2).join('이나 ');
-
     if (emotionText) {
       return `오늘 ${emotionText} ${persona}에게 얘기했더니 ${foodList}를 추천해줬어요.`;
     }
     return `오늘은 ${persona}에게 메뉴를 물어봤더니 ${foodList}를 추천해줬어요.`;
   }
 
-  // 일반 대화
+  // 상황과 조언이 모두 있는 경우
+  if (situationText && adviceText) {
+    // "어린이집 선생님이 3년간 퇴사를 고민해" 같은 구체적인 상황이 있는 경우
+    if (
+      situationText.includes('선생님이') ||
+      situationText.includes('동료가') ||
+      situationText.includes('친구가')
+    ) {
+      if (emotionText && emotionText.includes('갈팡질팡')) {
+        return `${situationText} 갈팡질팡하자, ${persona}가 ${adviceText} 조언해줬어요.`;
+      }
+      return `${situationText}, ${persona}가 ${adviceText} 조언해줬어요.`;
+    }
+    // 일반적인 경우
+    if (emotionText) {
+      return `오늘 ${emotionText} ${situationText} ${persona}에게 이야기했더니 ${adviceText}.`;
+    }
+    return `오늘 ${situationText} ${persona}에게 이야기했더니 ${adviceText}.`;
+  }
+
+  // 감정만 있는 경우
   if (emotionText) {
     return `오늘은 ${emotionText} ${persona}와 이야기를 나눴어요.`;
   }
 
+  // 기본값 (최후의 수단)
   return `오늘은 ${persona}와 대화하며 하루를 보냈어요.`;
 }
 
@@ -455,9 +538,12 @@ function generateFallbackSummary(
 
 export async function POST(request: NextRequest) {
   try {
-    const { testToday, token } = (await request.json().catch(() => ({}))) as {
+    const { testToday, token, targetDate } = (await request
+      .json()
+      .catch(() => ({}))) as {
       testToday?: boolean;
       token?: string;
+      targetDate?: string; // "2025-10-23" 형식
     };
 
     // 인증 확인
@@ -478,14 +564,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, processed: 0 });
     }
 
-    // 날짜 설정 (테스트 모드면 오늘, 아니면 어제)
-    const date = new Date();
-    if (testToday) {
+    // 날짜 설정
+    let date: Date;
+    if (targetDate) {
+      // 특정 날짜 지정 (YYYY-MM-DD 형식) - 한국 시간 기준으로 파싱
+      const [year, month, day] = targetDate.split('-').map(Number);
+      date = new Date(year, month - 1, day, 0, 0, 0, 0);
+    } else if (testToday) {
+      // 테스트 모드면 오늘
+      date = new Date();
       date.setHours(0, 0, 0, 0);
     } else {
+      // 기본값: 어제
+      date = new Date();
       date.setDate(date.getDate() - 1);
       date.setHours(0, 0, 0, 0);
     }
+
+    console.log(
+      '분석 대상 날짜:',
+      date.toISOString(),
+      date.toLocaleDateString('ko-KR')
+    );
 
     let processed = 0;
 
@@ -494,7 +594,19 @@ export async function POST(request: NextRequest) {
       try {
         // 해당 날짜의 대화 내역 조회
         const history = await svc.getConversationsByDate(user.id, null, date);
-        if (history.length === 0) continue;
+        console.log(
+          `사용자 ${user.id}의 ${date.toLocaleDateString('ko-KR')} 대화 개수:`,
+          history.length
+        );
+
+        if (history.length === 0) {
+          console.log(
+            `사용자 ${user.id}의 ${date.toLocaleDateString(
+              'ko-KR'
+            )} 대화가 없어서 건너뜁니다.`
+          );
+          continue;
+        }
 
         // 1. 페르소나 이름 추출
         const personaName = await resolvePersonaNameFromHistory(
@@ -524,16 +636,22 @@ export async function POST(request: NextRequest) {
           personaName
         );
 
+        console.log(`생성된 요약:`, summary);
+        console.log(`감정:`, emotion, emotionKo);
+
         // 4. DB 저장 (upsert)
         const exist = await svc.getEmotionLogByDate(user.id, date);
         if (exist) {
+          console.log(`기존 감정 로그 업데이트 (ID: ${exist.id})`);
           await svc.updateEmotionLog(exist.id, {
             summary: `${emotionKo} 85%`,
             emotion,
             short_summary: summary,
             character_name: characterName,
           });
+          console.log(`감정 로그 업데이트 완료`);
         } else {
+          console.log(`새 감정 로그 생성`);
           await svc.createEmotionLog({
             id: crypto.randomUUID(),
             userId: user.id,
@@ -543,6 +661,7 @@ export async function POST(request: NextRequest) {
             shortSummary: summary,
             characterName,
           });
+          console.log(`감정 로그 생성 완료`);
         }
 
         processed += 1;

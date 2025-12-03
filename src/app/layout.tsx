@@ -24,9 +24,7 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <ClientSessionProvider>
-          <div className="mx-auto max-w-[375px] min-h-screen bg-stone-100">
-            {children}
-          </div>
+          <div className="mx-auto min-h-screen bg-stone-100">{children}</div>
         </ClientSessionProvider>
         <script
           dangerouslySetInnerHTML={{

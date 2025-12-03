@@ -247,24 +247,45 @@ export class ServerSupabaseService {
     personalityId: string | null,
     date: Date
   ): Promise<ConversationRow[]> {
-    const start = new Date(date);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(date);
-    end.setHours(23, 59, 59, 999);
+    // 날짜를 YYYY-MM-DD 형식으로 변환
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
+    
+    // 한국 시간(KST, UTC+9) 기준으로 하루의 시작과 끝을 UTC로 변환
+    // 한국 시간 2025-10-23 00:00:00 = UTC 2025-10-22 15:00:00
+    // 한국 시간 2025-10-23 23:59:59 = UTC 2025-10-23 14:59:59
+    const startKST = new Date(`${dateStr}T00:00:00+09:00`);
+    const endKST = new Date(`${dateStr}T23:59:59.999+09:00`);
+    
+    // UTC로 변환 (toISOString() 사용)
+    const startUTC = startKST.toISOString();
+    const endUTC = endKST.toISOString();
+
+    console.log(`대화 조회: 날짜=${dateStr}, 시작(KST)=${dateStr} 00:00, 시작(UTC)=${startUTC}, 끝(UTC)=${endUTC}`);
 
     let query = getSupabaseServer()
       .from('conversations')
       .select('*')
       .eq('user_id', userId)
-      .gte('created_at', start.toISOString())
-      .lte('created_at', end.toISOString())
+      .gte('created_at', startUTC)
+      .lte('created_at', endUTC)
       .order('created_at', { ascending: true });
 
     if (personalityId) query = query.eq('personality_id', personalityId);
 
     const { data, error } = await query;
-    if (error || !data) return [];
-    return data as ConversationRow[];
+    if (error) {
+      console.error('대화 조회 오류:', error);
+      return [];
+    }
+    console.log(`조회된 대화 개수: ${data?.length || 0}`);
+    if (data && data.length > 0) {
+      console.log(`첫 번째 대화 시간: ${(data[0] as ConversationRow).created_at}`);
+      console.log(`마지막 대화 시간: ${(data[data.length - 1] as ConversationRow).created_at}`);
+    }
+    return (data as ConversationRow[]) || [];
   }
 
   async getConversationDates(

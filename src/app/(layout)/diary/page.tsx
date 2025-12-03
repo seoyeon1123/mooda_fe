@@ -88,7 +88,7 @@ export default function DiaryPage() {
     <div className="flex h-full flex-col bg-stone-50">
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto px-4 pb-24 pt-4">
-        <div className="mx-auto max-w-2xl">
+        <div className="mx-auto ">
           <div className="mb-6 flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold">감정 일기</h2>

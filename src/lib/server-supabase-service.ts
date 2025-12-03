@@ -227,6 +227,12 @@ export class ServerSupabaseService {
     content: string;
     personalityId?: string;
   }): Promise<ConversationRow | null> {
+    console.log('💾 DB 저장 시도:', {
+      role: conv.role,
+      content: conv.content.substring(0, 50) + '...',
+      personalityId: conv.personalityId,
+    });
+
     const { data, error } = await getSupabaseServer()
       .from('conversations')
       .insert({
@@ -238,7 +244,13 @@ export class ServerSupabaseService {
       })
       .select()
       .single();
-    if (error) return null;
+
+    if (error) {
+      console.error('❌ DB 저장 실패:', error);
+      return null;
+    }
+
+    console.log('✅ DB 저장 성공:', { id: data.id, role: data.role });
     return data as ConversationRow;
   }
 
@@ -252,18 +264,20 @@ export class ServerSupabaseService {
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     const dateStr = `${year}-${month}-${day}`;
-    
+
     // 한국 시간(KST, UTC+9) 기준으로 하루의 시작과 끝을 UTC로 변환
     // 한국 시간 2025-10-23 00:00:00 = UTC 2025-10-22 15:00:00
     // 한국 시간 2025-10-23 23:59:59 = UTC 2025-10-23 14:59:59
     const startKST = new Date(`${dateStr}T00:00:00+09:00`);
     const endKST = new Date(`${dateStr}T23:59:59.999+09:00`);
-    
+
     // UTC로 변환 (toISOString() 사용)
     const startUTC = startKST.toISOString();
     const endUTC = endKST.toISOString();
 
-    console.log(`대화 조회: 날짜=${dateStr}, 시작(KST)=${dateStr} 00:00, 시작(UTC)=${startUTC}, 끝(UTC)=${endUTC}`);
+    console.log(
+      `대화 조회: 날짜=${dateStr}, 시작(KST)=${dateStr} 00:00, 시작(UTC)=${startUTC}, 끝(UTC)=${endUTC}`
+    );
 
     let query = getSupabaseServer()
       .from('conversations')
@@ -273,7 +287,13 @@ export class ServerSupabaseService {
       .lte('created_at', endUTC)
       .order('created_at', { ascending: true });
 
-    if (personalityId) query = query.eq('personality_id', personalityId);
+    // personalityId가 null이 아니고 빈 문자열도 아닐 때만 필터링
+    if (personalityId && personalityId.trim() !== '') {
+      query = query.eq('personality_id', personalityId);
+      console.log(`personalityId 필터 적용: ${personalityId}`);
+    } else {
+      console.log('모든 캐릭터의 대화 조회 (필터 없음)');
+    }
 
     const { data, error } = await query;
     if (error) {
@@ -282,8 +302,14 @@ export class ServerSupabaseService {
     }
     console.log(`조회된 대화 개수: ${data?.length || 0}`);
     if (data && data.length > 0) {
-      console.log(`첫 번째 대화 시간: ${(data[0] as ConversationRow).created_at}`);
-      console.log(`마지막 대화 시간: ${(data[data.length - 1] as ConversationRow).created_at}`);
+      console.log(
+        `첫 번째 대화 시간: ${(data[0] as ConversationRow).created_at}`
+      );
+      console.log(
+        `마지막 대화 시간: ${
+          (data[data.length - 1] as ConversationRow).created_at
+        }`
+      );
     }
     return (data as ConversationRow[]) || [];
   }

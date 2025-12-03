@@ -133,10 +133,10 @@ export default function ChatTab() {
           createdAt: new Date(),
         };
 
-        // 실제 대화 기록을 불러오기 (오늘 날짜만)
+        // 실제 대화 기록을 불러오기 (오늘 날짜의 모든 캐릭터 대화)
         const conversations = await loadConversationHistory(
           session.user.id,
-          '' as unknown as string
+          null as unknown as string
         );
         const processedConversations: Message[] = conversations.map(toMessage);
 
@@ -167,13 +167,6 @@ export default function ChatTab() {
           return [todayHeader, ...msgs];
         };
 
-        const startMsgContent = currentPersonality
-          ? `--- 이제부터 ${currentPersonality.name}와 대화를 시작합니다 ---`
-          : '';
-        const startMsgFromState = messages.find(
-          (m) => m.role === 'system' && m.content === startMsgContent
-        );
-
         if (conversations.length === 0) {
           const welcomeMessage: Message = {
             id: String(Date.now()),
@@ -181,20 +174,10 @@ export default function ChatTab() {
             content: `안녕! 나는 ${currentPersonality.name}야! ${currentPersonality.shortDescription}`,
             createdAt: new Date(),
           };
-          const base = [welcomeMessage];
-          const merged = startMsgFromState
-            ? [...base, startMsgFromState]
-            : base;
-          setMessages(withTodayHeader(merged));
+          setMessages(withTodayHeader([welcomeMessage]));
         } else {
-          const alreadyHasStart = purifiedConversationsToday.some(
-            (m) => m.role === 'system' && m.content === startMsgContent
-          );
-          const merged =
-            !alreadyHasStart && startMsgFromState
-              ? [...purifiedConversationsToday, startMsgFromState]
-              : purifiedConversationsToday;
-          setMessages(withTodayHeader(merged));
+          // 서버에서 불러온 대화 기록 그대로 표시
+          setMessages(withTodayHeader(purifiedConversationsToday));
         }
         // 오늘 날짜로 복귀 시 전체 로딩 해제
         setIsLoading(false);
@@ -309,10 +292,10 @@ export default function ChatTab() {
         // 스토어에서 직접 최신 상태를 조회하여 의존성 문제를 회피합니다.
         const personalityChanged = useUserStore.getState().personalityChanged;
 
-        // 실제 대화 기록을 불러오기 (오늘 날짜만)
+        // 실제 대화 기록을 불러오기 (오늘 날짜의 모든 캐릭터 대화)
         const conversations = await loadConversationHistory(
           session.user.id,
-          '' as unknown as string
+          null as unknown as string
         );
         const processedConversations: Message[] =
           conversations.map(mapToMessage);
@@ -332,38 +315,59 @@ export default function ChatTab() {
         );
 
         if (personalityChanged && currentPersonality) {
-          const systemMessage: Message = {
-            id: `system_${Date.now()}`,
-            role: 'system',
-            content: `--- 이제부터 ${currentPersonality.name}와 대화를 시작합니다 ---`,
-            createdAt: new Date(),
-          };
-          setMessages(
-            withTodayHeader([...purifiedConversations, systemMessage])
-          );
-          // 이미 오늘 기록에 동일 메시지가 없을 때만 서버 저장
+          // 이미 오늘 기록에 동일 메시지가 없을 때만 서버 저장 후 화면에 표시
+          const systemMessageContent = `--- 이제부터 ${currentPersonality.name}와 대화를 시작합니다 ---`;
           const alreadyHasStart = purifiedConversations.some(
-            (m) => m.role === 'system' && m.content === systemMessage.content
+            (m) => m.role === 'system' && m.content === systemMessageContent
           );
+          
           if (!alreadyHasStart) {
             try {
-              await addSystemMessage(
+              console.log('💾 시스템 메시지 저장 시작:', systemMessageContent);
+              const result = await addSystemMessage(
                 session.user.id,
                 currentPersonality.id,
-                systemMessage.content
+                systemMessageContent
               );
-            } catch {}
-          }
-          // 로컬에도 오늘 시작 메시지 저장 (새로고침 복구용)
-          try {
-            const todayKey = new Date().toISOString().split('T')[0];
-            if (typeof window !== 'undefined') {
-              localStorage.setItem(
-                `startMsg:${todayKey}`,
-                systemMessage.content
+              if (result) {
+                console.log('✅ 시스템 메시지 저장 성공:', result);
+                // DB에 저장된 실제 메시지를 화면에 추가
+                setMessages(
+                  withTodayHeader([...purifiedConversations, result])
+                );
+              } else {
+                console.error('❌ 시스템 메시지 저장 실패: result가 null');
+                // 저장 실패해도 화면에는 표시 (임시)
+                const tempMessage: Message = {
+                  id: `system_${Date.now()}`,
+                  role: 'system',
+                  content: systemMessageContent,
+                  createdAt: new Date(),
+                  personalityId: currentPersonality.id,
+                };
+                setMessages(
+                  withTodayHeader([...purifiedConversations, tempMessage])
+                );
+              }
+            } catch (error) {
+              console.error('❌ 시스템 메시지 저장 오류:', error);
+              // 저장 실패해도 화면에는 표시 (임시)
+              const tempMessage: Message = {
+                id: `system_${Date.now()}`,
+                role: 'system',
+                content: systemMessageContent,
+                createdAt: new Date(),
+                personalityId: currentPersonality.id,
+              };
+              setMessages(
+                withTodayHeader([...purifiedConversations, tempMessage])
               );
             }
-          } catch {}
+          } else {
+            console.log('ℹ️ 이미 시스템 메시지 존재, 저장 건너뜀');
+            // 이미 있는 경우 기존 메시지 그대로 표시
+            setMessages(withTodayHeader(purifiedConversations));
+          }
           ackPersonalityChange(); // 플래그 리셋
         } else if (conversations.length === 0 && currentPersonality) {
           const welcomeMessage: Message = {
@@ -375,39 +379,8 @@ export default function ChatTab() {
           const base = [welcomeMessage];
           setMessages(withTodayHeader(base));
         } else {
-          const startMsgContent = startMsgContentCurrent;
-          const alreadyHasStart = purifiedConversations.some(
-            (m) => m.role === 'system' && m.content === startMsgContent
-          );
-          let merged = purifiedConversations;
-          // 로컬 저장된 시작 메시지가 있는데 서버 기록에 없다면 복구
-          try {
-            const todayKey = new Date().toISOString().split('T')[0];
-            const localStart =
-              typeof window !== 'undefined'
-                ? localStorage.getItem(`startMsg:${todayKey}`)
-                : null;
-            const hasInMerged = merged.some(
-              (m) => m.role === 'system' && m.content === localStart
-            );
-            if (
-              localStart &&
-              localStart === startMsgContent &&
-              !hasInMerged &&
-              !alreadyHasStart
-            ) {
-              merged = [
-                ...merged,
-                {
-                  id: `system_${Date.now()}`,
-                  role: 'system' as const,
-                  content: localStart,
-                  createdAt: new Date(),
-                },
-              ];
-            }
-          } catch {}
-          setMessages(withTodayHeader(merged));
+          // 서버에서 불러온 대화 기록 그대로 표시
+          setMessages(withTodayHeader(purifiedConversations));
         }
 
         // 날짜 선택 상태 초기화

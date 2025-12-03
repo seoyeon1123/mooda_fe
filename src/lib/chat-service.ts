@@ -127,7 +127,17 @@ export const addSystemMessage = async (
     });
     if (!response.ok) return null;
     const result = await response.json();
-    if (result?.success) return result.message as Message;
+    if (result?.success && result.message) {
+      // ConversationRow를 Message로 변환
+      const conv = result.message;
+      return {
+        id: conv.id,
+        role: 'system',
+        content: conv.content,
+        createdAt: new Date(conv.created_at || Date.now()),
+        personalityId: conv.personality_id ?? null,
+      } as Message;
+    }
     return null;
   } catch (e) {
     console.error('시스템 메시지 저장 실패:', e);

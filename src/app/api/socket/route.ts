@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
-import { ServerSupabaseService } from "@/lib/server-supabase-service";
-import crypto from "crypto";
-import { AI_PERSONALITIES, type AIPersonality } from "@/lib/ai-personalities";
+import { NextRequest, NextResponse } from 'next/server';
+import { ServerSupabaseService } from '@/lib/server-supabase-service';
+import crypto from 'crypto';
+import { AI_PERSONALITIES, type AIPersonality } from '@/lib/ai-personalities';
 
 export async function GET() {
-  return NextResponse.json({ message: "Chat API server is running" });
+  return NextResponse.json({ message: 'Chat API server is running' });
 }
 
 export async function POST(request: NextRequest) {
@@ -15,20 +15,20 @@ export async function POST(request: NextRequest) {
       data: unknown;
     };
 
-    if (action === "send-message") {
+    if (action === 'send-message') {
       const { message, userId, personalityId } = data as {
         message: string;
         userId: string;
         personalityId?: string;
       };
       if (!message || !userId)
-        return NextResponse.json({ error: "Bad request" }, { status: 400 });
+        return NextResponse.json({ error: 'Bad request' }, { status: 400 });
 
       // 메시지 저장
       const userMsg = await svc.createConversation({
         id: crypto.randomUUID(),
         userId,
-        role: "user",
+        role: 'user',
         content: message,
         personalityId,
       });
@@ -60,10 +60,10 @@ export async function POST(request: NextRequest) {
             );
             if (custom) {
               // mbti_types 파싱 후 아이콘 타입 생성 (예: ENFP)
-              let mbtiType = "ENFP";
+              let mbtiType = 'ENFP';
               try {
                 const t =
-                  typeof custom.mbti_types === "string"
+                  typeof custom.mbti_types === 'string'
                     ? JSON.parse(custom.mbti_types)
                     : custom.mbti_types;
                 if (
@@ -75,29 +75,29 @@ export async function POST(request: NextRequest) {
                   mbtiType = `${t.energy}${t.information}${t.decisions}${t.lifestyle}`;
                 }
               } catch (e) {
-                console.error("MBTI 파싱 오류:", e);
+                console.error('MBTI 파싱 오류:', e);
               }
 
               personality = {
                 id: custom.id,
                 name: custom.name,
-                description: custom.description ?? "",
-                shortDescription: custom.description ?? "",
-                iconType: mbtiType as AIPersonality["iconType"],
-                color: "bg-purple-100 border-purple-300",
-                personalitySummary: custom.description ?? "",
+                description: custom.description ?? '',
+                shortDescription: custom.description ?? '',
+                iconType: mbtiType as AIPersonality['iconType'],
+                color: 'bg-purple-100 border-purple-300',
+                personalitySummary: custom.description ?? '',
                 signaturePhrases: [],
                 speechStyle: {
-                  tone: "자연스러운 반말",
-                  reaction: "개성있는 대화",
+                  tone: '자연스러운 반말',
+                  reaction: '개성있는 대화',
                   keywords: [],
                 },
-                systemPrompt: custom.system_prompt ?? "",
+                systemPrompt: custom.system_prompt ?? '',
                 exampleMessages: [],
               };
             }
           } catch (e) {
-            console.error("커스텀 AI 조회 실패:", e);
+            console.error('커스텀 AI 조회 실패:', e);
           }
         }
       }
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
       async function listAvailableModels(): Promise<string[]> {
         const apiKey = process.env.GEMINI_API_KEY;
         if (!apiKey) {
-          console.error("GEMINI_API_KEY is missing");
+          console.error('GEMINI_API_KEY is missing');
           return [];
         }
         const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
           const res = await fetch(url);
           if (!res.ok) {
             const text = await res.text();
-            console.error("Gemini ListModels error", {
+            console.error('Gemini ListModels error', {
               status: res.status,
               text,
             });
@@ -130,10 +130,10 @@ export async function POST(request: NextRequest) {
             .filter(
               (m) =>
                 Array.isArray(m.supportedGenerationMethods) &&
-                m.supportedGenerationMethods.includes("generateContent")
+                m.supportedGenerationMethods.includes('generateContent')
             )
             .map((m) =>
-              typeof m.name === "string" ? m.name.replace(/^models\//, "") : ""
+              typeof m.name === 'string' ? m.name.replace(/^models\//, '') : ''
             )
             .filter(Boolean);
           names.sort((a, b) => {
@@ -141,10 +141,10 @@ export async function POST(request: NextRequest) {
             const pb = /flash/i.test(b) ? 0 : 1;
             return pa - pb || a.localeCompare(b);
           });
-          console.log("Gemini available models:", names);
+          console.log('Gemini available models:', names);
           return names;
         } catch (e) {
-          console.error("Gemini ListModels failed", e);
+          console.error('Gemini ListModels failed', e);
           return [];
         }
       }
@@ -154,31 +154,31 @@ export async function POST(request: NextRequest) {
       ): Promise<string> {
         const apiKey = process.env.GEMINI_API_KEY;
         if (!apiKey) {
-          console.error("GEMINI_API_KEY is missing");
-          return "";
+          console.error('GEMINI_API_KEY is missing');
+          return '';
         }
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
         try {
           const res = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
           });
           if (!res.ok) {
             const text = await res.text();
-            console.error("Gemini API error", {
+            console.error('Gemini API error', {
               model,
               status: res.status,
               text,
             });
-            return "";
+            return '';
           }
           const json = await res.json();
-          const out = json?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-          return typeof out === "string" ? out : "";
+          const out = json?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+          return typeof out === 'string' ? out : '';
         } catch (e) {
-          console.error("Gemini fetch failed", { model, error: e });
-          return "";
+          console.error('Gemini fetch failed', { model, error: e });
+          return '';
         }
       }
 
@@ -191,10 +191,10 @@ export async function POST(request: NextRequest) {
         const listed = await listAvailableModels();
         for (const m of listed) if (!candidates.includes(m)) candidates.push(m);
         const defaults = [
-          "gemini-1.5-flash-8b",
-          "gemini-1.5-flash",
-          "gemini-1.5-pro",
-          "gemini-1.0-pro",
+          'gemini-1.5-flash-8b',
+          'gemini-1.5-flash',
+          'gemini-1.5-pro',
+          'gemini-1.0-pro',
         ];
         for (const m of defaults)
           if (!candidates.includes(m)) candidates.push(m);
@@ -202,7 +202,7 @@ export async function POST(request: NextRequest) {
           const out = (await callGeminiModel(prompt, m)).trim();
           if (out) return out;
         }
-        return "";
+        return '';
       }
 
       // 최근 대화 맥락(오늘) 10개만 사용
@@ -215,11 +215,11 @@ export async function POST(request: NextRequest) {
       );
       const lastTurns = history
         .slice(-10)
-        .map((m) => `${m.role === "ai" ? "Assistant" : "User"}: ${m.content}`)
-        .join("\n");
+        .map((m) => `${m.role === 'ai' ? 'Assistant' : 'User'}: ${m.content}`)
+        .join('\n');
 
-      const sys = personality?.systemPrompt ?? "";
-      const personaName = personality?.name || "무니";
+      const sys = personality?.systemPrompt ?? '';
+      const personaName = personality?.name || '무니';
       const prompt = `${sys}
 
 역할: 너는 ${personaName}야. 성격의 톤을 유지해 한국어 반말로 답해.
@@ -253,7 +253,7 @@ ${lastTurns}
         return NextResponse.json(
           {
             error:
-              "AI 응답 생성 실패: API 응답이 비었습니다. 키/모델/네트워크를 점검해주세요",
+              'AI 응답 생성 실패: API 응답이 비었습니다. 키/모델/네트워크를 점검해주세요',
           },
           { status: 503 }
         );
@@ -263,7 +263,7 @@ ${lastTurns}
       const aiMsg = await svc.createConversation({
         id: crypto.randomUUID(),
         userId,
-        role: "ai",
+        role: 'ai',
         content: aiText,
         personalityId,
       });
@@ -282,31 +282,46 @@ ${lastTurns}
       });
     }
 
-    if (action === "add-system-message") {
+    if (action === 'add-system-message') {
       const { userId, personalityId, content } = data as {
         userId: string;
         personalityId?: string | null;
         content: string;
       };
+      console.log('📩 시스템 메시지 저장 요청:', {
+        userId,
+        personalityId,
+        content,
+      });
+
       if (!userId || !content) {
-        return NextResponse.json({ error: "Bad request" }, { status: 400 });
+        console.error('❌ 잘못된 요청: userId 또는 content 누락');
+        return NextResponse.json({ error: 'Bad request' }, { status: 400 });
       }
 
       const created = await svc.createConversation({
         id: crypto.randomUUID(),
         userId,
-        role: "system",
+        role: 'system',
         content,
         personalityId: personalityId ?? undefined,
       });
 
+      if (created) {
+        console.log('✅ 시스템 메시지 저장 완료:', created);
+      } else {
+        console.error(
+          '❌ 시스템 메시지 저장 실패: createConversation returned null'
+        );
+      }
+
       return NextResponse.json({ success: true, message: created });
     }
 
-    if (action === "analyze-emotion") {
+    if (action === 'analyze-emotion') {
       const { userId } = data as { userId: string };
       if (!userId)
-        return NextResponse.json({ error: "Bad request" }, { status: 400 });
+        return NextResponse.json({ error: 'Bad request' }, { status: 400 });
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const conversations = await svc.getConversationsByDate(
@@ -316,18 +331,18 @@ ${lastTurns}
       );
       if (conversations.length === 0)
         return NextResponse.json(
-          { error: "No conversations to analyze" },
+          { error: 'No conversations to analyze' },
           { status: 400 }
         );
-      const allText = conversations.map((c) => c.content).join(" ");
-      let emotion = "Neutral";
-      if (/좋|행복|기쁘/.test(allText)) emotion = "Happy";
-      else if (/슬프|우울|힘들/.test(allText)) emotion = "Sad";
-      else if (/화|짜증/.test(allText)) emotion = "Angry";
-      return NextResponse.json({ success: true, emotion, summary: "" });
+      const allText = conversations.map((c) => c.content).join(' ');
+      let emotion = 'Neutral';
+      if (/좋|행복|기쁘/.test(allText)) emotion = 'Happy';
+      else if (/슬프|우울|힘들/.test(allText)) emotion = 'Sad';
+      else if (/화|짜증/.test(allText)) emotion = 'Angry';
+      return NextResponse.json({ success: true, emotion, summary: '' });
     }
 
-    if (action === "get-conversation-history") {
+    if (action === 'get-conversation-history') {
       const { userId, personalityId } = data as {
         userId: string;
         personalityId?: string;
@@ -343,40 +358,40 @@ ${lastTurns}
       return NextResponse.json({ conversations: list, success: true });
     }
 
-    if (action === "get-conversation-history-by-date") {
+    if (action === 'get-conversation-history-by-date') {
       const { userId, personalityId, date } = data as {
         userId: string;
-        personalityId: string;
+        personalityId?: string | null;
         date: string;
       };
       const target = new Date(date);
       const list = await svc.getConversationsByDate(
         userId,
-        personalityId,
+        personalityId ?? null,
         target
       );
       return NextResponse.json({ conversations: list, success: true });
     }
 
-    if (action === "get-conversation-dates") {
+    if (action === 'get-conversation-dates') {
       const { userId, personalityId } = data as {
         userId: string;
         personalityId: string;
       };
       const dates = await svc.getConversationDates(userId, personalityId);
       const set = new Set<string>();
-      dates.forEach((d) => set.add(d.created_at.split("T")[0]));
+      dates.forEach((d) => set.add(d.created_at.split('T')[0]));
       return NextResponse.json({
         dates: Array.from(set).sort(),
         success: true,
       });
     }
 
-    return NextResponse.json({ error: "Unknown action" }, { status: 400 });
+    return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
   } catch (error) {
-    console.error("Proxy error:", error);
+    console.error('Proxy error:', error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

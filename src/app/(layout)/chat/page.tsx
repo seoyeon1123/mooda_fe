@@ -322,7 +322,10 @@ export default function ChatTab() {
             let systemMessage: Message;
 
             try {
-              console.log('💾 시스템 메시지 DB 저장 시작:', systemMessageContent);
+              console.log(
+                '💾 시스템 메시지 DB 저장 시작:',
+                systemMessageContent
+              );
               const result = await addSystemMessage(
                 session.user.id,
                 currentPersonality.id,

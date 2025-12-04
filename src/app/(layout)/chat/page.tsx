@@ -301,21 +301,49 @@ export default function ChatTab() {
           );
           const systemMessageContent = `--- 이제부터 ${currentPersonality.name}와 대화를 시작합니다 ---`;
 
-          // 캐릭터 변경 시점마다 무조건 새로운 메시지 생성 및 저장
-          let systemMessage: Message;
+          // 중복 저장 방지: 최근 10초 이내에 동일한 메시지가 있는지 확인
+          const now = new Date().getTime();
+          const recentDuplicate = processedConversations.find(
+            (m) =>
+              m.role === 'system' &&
+              m.content === systemMessageContent &&
+              now - new Date(m.createdAt).getTime() < 10000 // 10초 이내
+          );
 
-          try {
-            console.log('💾 시스템 메시지 DB 저장 시작:', systemMessageContent);
-            const result = await addSystemMessage(
-              session.user.id,
-              currentPersonality.id,
-              systemMessageContent
-            );
-            if (result) {
-              console.log('✅ 시스템 메시지 DB 저장 성공:', result);
-              systemMessage = result;
-            } else {
-              console.error('❌ 시스템 메시지 저장 실패: result가 null');
+          if (recentDuplicate) {
+            console.log('⚠️ 10초 이내 중복 메시지 발견, 저장 건너뜀');
+            setMessages(withTodayHeader(processedConversations));
+            ackPersonalityChange(); // 플래그 리셋
+          } else {
+            // 플래그를 먼저 리셋하여 중복 실행 방지
+            ackPersonalityChange();
+
+            // 캐릭터 변경 시점마다 새로운 메시지 생성 및 저장
+            let systemMessage: Message;
+
+            try {
+              console.log('💾 시스템 메시지 DB 저장 시작:', systemMessageContent);
+              const result = await addSystemMessage(
+                session.user.id,
+                currentPersonality.id,
+                systemMessageContent
+              );
+              if (result) {
+                console.log('✅ 시스템 메시지 DB 저장 성공:', result);
+                systemMessage = result;
+              } else {
+                console.error('❌ 시스템 메시지 저장 실패: result가 null');
+                // 저장 실패해도 화면에는 표시 (임시 ID)
+                systemMessage = {
+                  id: `system_${Date.now()}`,
+                  role: 'system',
+                  content: systemMessageContent,
+                  createdAt: new Date(),
+                  personalityId: currentPersonality.id,
+                };
+              }
+            } catch (error) {
+              console.error('❌ 시스템 메시지 저장 오류:', error);
               // 저장 실패해도 화면에는 표시 (임시 ID)
               systemMessage = {
                 id: `system_${Date.now()}`,
@@ -325,24 +353,13 @@ export default function ChatTab() {
                 personalityId: currentPersonality.id,
               };
             }
-          } catch (error) {
-            console.error('❌ 시스템 메시지 저장 오류:', error);
-            // 저장 실패해도 화면에는 표시 (임시 ID)
-            systemMessage = {
-              id: `system_${Date.now()}`,
-              role: 'system',
-              content: systemMessageContent,
-              createdAt: new Date(),
-              personalityId: currentPersonality.id,
-            };
-          }
 
-          // 화면에 추가 (기존 대화 + 새 시스템 메시지)
-          console.log('🎯 시스템 메시지를 타임라인에 추가');
-          setMessages(
-            withTodayHeader([...processedConversations, systemMessage])
-          );
-          ackPersonalityChange(); // 플래그 리셋
+            // 화면에 추가 (기존 대화 + 새 시스템 메시지)
+            console.log('🎯 시스템 메시지를 타임라인에 추가');
+            setMessages(
+              withTodayHeader([...processedConversations, systemMessage])
+            );
+          }
         } else if (conversations.length === 0 && currentPersonality) {
           console.log('📭 대화 기록 없음, 환영 메시지 표시');
           const welcomeMessage: Message = {

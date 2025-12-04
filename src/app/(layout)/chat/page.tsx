@@ -296,7 +296,9 @@ export default function ChatTab() {
         console.log('📖 모든 대화 기록 유지 (캐릭터 변경 이력 포함)');
 
         if (personalityChanged && currentPersonality) {
-          console.log('✨ personalityChanged = true, 캐릭터 변경 시스템 메시지 추가');
+          console.log(
+            '✨ personalityChanged = true, 캐릭터 변경 시스템 메시지 추가'
+          );
           const systemMessageContent = `--- 이제부터 ${currentPersonality.name}와 대화를 시작합니다 ---`;
 
           // 캐릭터 변경 시점마다 무조건 새로운 메시지 생성 및 저장
@@ -327,12 +329,12 @@ export default function ChatTab() {
             console.error('❌ 시스템 메시지 저장 오류:', error);
             // 저장 실패해도 화면에는 표시 (임시 ID)
             systemMessage = {
-            id: `system_${Date.now()}`,
-            role: 'system',
+              id: `system_${Date.now()}`,
+              role: 'system',
               content: systemMessageContent,
-            createdAt: new Date(),
+              createdAt: new Date(),
               personalityId: currentPersonality.id,
-          };
+            };
           }
 
           // 화면에 추가 (기존 대화 + 새 시스템 메시지)

@@ -259,15 +259,16 @@ export class ServerSupabaseService {
     personalityId: string | null,
     date: Date
   ): Promise<ConversationRow[]> {
-    // 날짜를 YYYY-MM-DD 형식으로 변환
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
+    // 받은 Date 객체를 한국 시간으로 해석
+    const kstDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+    const year = kstDate.getFullYear();
+    const month = String(kstDate.getMonth() + 1).padStart(2, '0');
+    const day = String(kstDate.getDate()).padStart(2, '0');
     const dateStr = `${year}-${month}-${day}`;
 
     // 한국 시간(KST, UTC+9) 기준으로 하루의 시작과 끝을 UTC로 변환
-    // 한국 시간 2025-10-23 00:00:00 = UTC 2025-10-22 15:00:00
-    // 한국 시간 2025-10-23 23:59:59 = UTC 2025-10-23 14:59:59
+    // 한국 시간 2025-12-03 00:00:00 = UTC 2025-12-02 15:00:00
+    // 한국 시간 2025-12-03 23:59:59 = UTC 2025-12-03 14:59:59
     const startKST = new Date(`${dateStr}T00:00:00+09:00`);
     const endKST = new Date(`${dateStr}T23:59:59.999+09:00`);
 
@@ -276,7 +277,7 @@ export class ServerSupabaseService {
     const endUTC = endKST.toISOString();
 
     console.log(
-      `대화 조회: 날짜=${dateStr}, 시작(KST)=${dateStr} 00:00, 시작(UTC)=${startUTC}, 끝(UTC)=${endUTC}`
+      `대화 조회: 날짜=${dateStr}, 한국시간 범위: ${dateStr} 00:00 ~ 23:59, UTC 범위: ${startUTC} ~ ${endUTC}`
     );
 
     let query = getSupabaseServer()

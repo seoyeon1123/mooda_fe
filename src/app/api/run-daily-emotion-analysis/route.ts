@@ -564,27 +564,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, processed: 0 });
     }
 
-    // 날짜 설정
+    // 날짜 설정 (한국 시간 기준)
     let date: Date;
     if (targetDate) {
       // 특정 날짜 지정 (YYYY-MM-DD 형식) - 한국 시간 기준으로 파싱
       const [year, month, day] = targetDate.split('-').map(Number);
-      date = new Date(year, month - 1, day, 0, 0, 0, 0);
+      // 한국 시간 00:00으로 생성
+      date = new Date(`${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T00:00:00+09:00`);
     } else if (testToday) {
-      // 테스트 모드면 오늘
-      date = new Date();
-      date.setHours(0, 0, 0, 0);
+      // 테스트 모드면 오늘 (한국 시간 기준)
+      const now = new Date();
+      const kstDate = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+      const year = kstDate.getFullYear();
+      const month = String(kstDate.getMonth() + 1).padStart(2, '0');
+      const day = String(kstDate.getDate()).padStart(2, '0');
+      date = new Date(`${year}-${month}-${day}T00:00:00+09:00`);
     } else {
-      // 기본값: 어제
-      date = new Date();
-      date.setDate(date.getDate() - 1);
-      date.setHours(0, 0, 0, 0);
+      // 기본값: 어제 (한국 시간 기준)
+      const now = new Date();
+      const kstDate = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+      kstDate.setDate(kstDate.getDate() - 1); // 어제
+      const year = kstDate.getFullYear();
+      const month = String(kstDate.getMonth() + 1).padStart(2, '0');
+      const day = String(kstDate.getDate()).padStart(2, '0');
+      date = new Date(`${year}-${month}-${day}T00:00:00+09:00`);
     }
 
     console.log(
-      '분석 대상 날짜:',
-      date.toISOString(),
-      date.toLocaleDateString('ko-KR')
+      '분석 대상 날짜 (한국 시간):',
+      date.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
+      'UTC:',
+      date.toISOString()
     );
 
     let processed = 0;

@@ -331,9 +331,15 @@ ${conversationContext}
 
 **좋은 요약 예시** (반드시 이 수준으로 작성):
 - "yy와 처음 인사를 나누고 INFP 성향에 대해 이야기했다가, 무리로 바꿔서 인사하고, 마지막으로 test10와 만나서 ENTP 성향으로 반말로 대화를 시작했어요."
-- "회사에서 상사와 다퉈서 화가 났는데, ${personaName || 'AI'}가 잠시 쉬면서 진정하고, 상황을 정리해서 대화하라고 조언해줬어요."
-- "시험 스트레스로 짜증이 났는데, ${personaName || 'AI'}가 좋아하는 음식 먹으면서 잠깐 쉬라고 위로해줬어요."
-- "친구와 싸워서 너무 속상했는데, ${personaName || 'AI'}가 먼저 사과하고 솔직하게 얘기하라고 격려해줬어요."
+- "회사에서 상사와 다퉈서 화가 났는데, ${
+    personaName || 'AI'
+  }가 잠시 쉬면서 진정하고, 상황을 정리해서 대화하라고 조언해줬어요."
+- "시험 스트레스로 짜증이 났는데, ${
+    personaName || 'AI'
+  }가 좋아하는 음식 먹으면서 잠깐 쉬라고 위로해줬어요."
+- "친구와 싸워서 너무 속상했는데, ${
+    personaName || 'AI'
+  }가 먼저 사과하고 솔직하게 얘기하라고 격려해줬어요."
 
 **절대 금지**:
 - 20자 이하의 짧은 요약 (예: "기분 좋아서 대화했어요")
@@ -439,7 +445,9 @@ function generateFallbackSummary(
     // 여러 캐릭터와 대화한 경우
     const characterNames = systemMessages
       .map((m) => {
-        const match = m.content.match(/--- 이제부터 (.*)와 대화를 시작합니다 ---/);
+        const match = m.content.match(
+          /--- 이제부터 (.*)와 대화를 시작합니다 ---/
+        );
         return match ? match[1] : null;
       })
       .filter(Boolean);
@@ -450,7 +458,9 @@ function generateFallbackSummary(
       const otherChars = characterNames.slice(1, -1);
 
       if (otherChars.length > 0) {
-        return `${firstChar}와 인사하고, ${otherChars.join(', ')}와 대화하다가, 마지막으로 ${lastChar}와 대화를 시작했어요.`;
+        return `${firstChar}와 인사하고, ${otherChars.join(
+          ', '
+        )}와 대화하다가, 마지막으로 ${lastChar}와 대화를 시작했어요.`;
       } else {
         return `${firstChar}와 인사하고 대화하다가, ${lastChar}로 바꿔서 새로운 대화를 시작했어요.`;
       }
@@ -619,11 +629,18 @@ export async function POST(request: NextRequest) {
       // 특정 날짜 지정 (YYYY-MM-DD 형식) - 한국 시간 기준으로 파싱
       const [year, month, day] = targetDate.split('-').map(Number);
       // 한국 시간 00:00으로 생성
-      date = new Date(`${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T00:00:00+09:00`);
+      date = new Date(
+        `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(
+          2,
+          '0'
+        )}T00:00:00+09:00`
+      );
     } else if (testToday) {
       // 테스트 모드면 오늘 (한국 시간 기준)
       const now = new Date();
-      const kstDate = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+      const kstDate = new Date(
+        now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' })
+      );
       const year = kstDate.getFullYear();
       const month = String(kstDate.getMonth() + 1).padStart(2, '0');
       const day = String(kstDate.getDate()).padStart(2, '0');
@@ -631,7 +648,9 @@ export async function POST(request: NextRequest) {
     } else {
       // 기본값: 어제 (한국 시간 기준)
       const now = new Date();
-      const kstDate = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+      const kstDate = new Date(
+        now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' })
+      );
       kstDate.setDate(kstDate.getDate() - 1); // 어제
       const year = kstDate.getFullYear();
       const month = String(kstDate.getMonth() + 1).padStart(2, '0');

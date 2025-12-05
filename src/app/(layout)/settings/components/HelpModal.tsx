@@ -7,7 +7,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/Dialog";
-import { HelpCircle, MessageCircle, Calendar, BookOpen, Mail } from "lucide-react";
+import { HelpCircle, MessageCircle, BookOpen, Mail } from "lucide-react";
 
 interface HelpModalProps {
   isOpen: boolean;

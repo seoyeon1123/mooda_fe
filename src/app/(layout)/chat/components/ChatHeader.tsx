@@ -1,6 +1,6 @@
 'use client';
 
-import { Calendar } from 'lucide-react';
+import { Calendar, ArrowLeft } from 'lucide-react';
 import { AIPersonality } from '@/lib/ai-personalities';
 import MooIcon from '@/app/(layout)/settings/components/MooIcon';
 
@@ -8,16 +8,20 @@ interface ChatHeaderProps {
   currentPersonality: AIPersonality | null;
   showCalendar: boolean;
   setShowCalendar: (show: boolean) => void;
+  viewingPastDate?: boolean;
+  onReturnToToday?: () => void;
 }
 
 export default function ChatHeader({
   currentPersonality,
   showCalendar,
   setShowCalendar,
+  viewingPastDate = false,
+  onReturnToToday,
 }: ChatHeaderProps) {
   return (
     <>
-      <div className="relative bg-white border-b border-stone-200 px-4 py-2.5 flex-shrink-0">
+      <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-sm border-b border-stone-200 px-4 py-2.5 flex-shrink-0 shadow-sm">
         <div className="flex items-center justify-between">
           {/* 왼쪽: 프로필 정보 */}
           <div className="flex items-center space-x-3 flex-1">
@@ -46,6 +50,15 @@ export default function ChatHeader({
 
           {/* 오른쪽: 액션 버튼들 */}
           <div className="flex items-center space-x-2">
+            {viewingPastDate && onReturnToToday && (
+              <button
+                onClick={onReturnToToday}
+                className="px-3 py-1.5 rounded-full bg-green-600 text-white text-sm font-medium hover:bg-green-700 transition-colors flex items-center gap-1.5"
+              >
+                <ArrowLeft size={16} />
+                <span>오늘 대화로</span>
+              </button>
+            )}
             <button
               onClick={() => setShowCalendar(!showCalendar)}
               className="w-10 h-10 rounded-full bg-stone-100 hover:bg-stone-200 flex items-center justify-center transition-colors"

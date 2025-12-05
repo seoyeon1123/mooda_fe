@@ -315,45 +315,42 @@ async function generateNarrativeSummary(
     )
     .join('\n');
 
-  const prompt = `아래는 사용자와 AI의 대화입니다. 이 대화를 자연스러운 이야기체로 요약해주세요.
+  const prompt = `아래는 사용자와 AI의 대화입니다. 이 대화를 자연스럽고 상세한 이야기체로 요약해주세요.
 
 대화 내용:
 ${conversationContext}
 
-**요약 작성 규칙**:
-1. 80-150자 분량
-2. 대화의 핵심 내용과 흐름을 구체적으로 담기
-   - 사용자가 어떤 고민이나 상황을 이야기했는지 (구체적인 내용 포함)
-   - 사용자가 무엇을 느꼈는지 (짜증, 화남, 기쁨, 고민, 갈팡질팡 등)
-   - ${personaName || 'AI'}가 어떤 조언이나 도움을 줬는지 (구체적인 조언 내용)
-3. 자연스러운 한국어로 작성
-4. 대화의 핵심 주제를 명확히 드러내기
+**요약 작성 규칙 (반드시 준수)**:
+1. **최소 80자 이상** 필수
+2. **구체적인 내용 3가지 이상 포함**:
+   - 사용자가 어떤 상황이나 고민을 이야기했는지 (예: 회사 스트레스, 인간관계, 학업 문제 등)
+   - 사용자가 느낀 감정은 무엇인지 (화남, 짜증, 슬픔, 기쁨, 불안 등)
+   - ${personaName || 'AI'}가 어떤 반응이나 조언을 줬는지 (구체적 내용 포함)
+3. 여러 캐릭터와 대화했다면 모두 언급하기
+4. "대화했어요", "이야기 나눴어요" 같은 모호한 표현 금지
 
-**좋은 요약 예시**:
-- "어린이집 선생님이 3년간 퇴사를 고민해 갈팡질팡하자, ${
+**좋은 요약 예시** (반드시 이 수준으로 작성):
+- "yy와 처음 인사를 나누고 INFP 성향에 대해 이야기했다가, 무리로 바꿔서 인사하고, 마지막으로 test10와 만나서 ENTP 성향으로 반말로 대화를 시작했어요."
+- "회사에서 상사와 다퉈서 화가 났는데, ${
     personaName || 'AI'
-  }가 구체적인 계획을 세우라고 조언해줬어요."
-- "오늘 일이 너무 많아서 짜증났는데, ${
+  }가 잠시 쉬면서 진정하고, 상황을 정리해서 대화하라고 조언해줬어요."
+- "시험 스트레스로 짜증이 났는데, ${
     personaName || 'AI'
-  }가 매운 떡볶이를 추천해줬어요."
-- "친구와 다퉜어서 속상했는데, ${
+  }가 좋아하는 음식 먹으면서 잠깐 쉬라고 위로해줬어요."
+- "친구와 싸워서 너무 속상했는데, ${
     personaName || 'AI'
-  }가 직접 대화하라고 조언해줬어요."
-- "스트레스 받는 하루였는데 ${
-    personaName || 'AI'
-  }가 치킨이랑 피자를 추천해줘서 위로받았어요."
+  }가 먼저 사과하고 솔직하게 얘기하라고 격려해줬어요."
 
-**중요**:
-- 사용자가 구체적으로 언급한 상황(직장, 인간관계, 고민 등)을 반드시 포함하세요
-- ${personaName || 'AI'}의 조언이나 추천 내용을 구체적으로 언급하세요
-- 음식 추천이 없어도 대화 내용을 요약하세요
-- AI의 말투("아이고", "진짜?", "ㄱㄱ" 등)를 그대로 쓰지 마세요
-- 이모지는 절대 포함하지 마세요
-- "오늘은 ${
-    personaName || 'AI'
-  }와 대화하며 하루를 보냈어요" 같은 모호한 표현은 피하세요
+**절대 금지**:
+- 20자 이하의 짧은 요약 (예: "기분 좋아서 대화했어요")
+- 구체적 내용 없이 추상적인 표현만 사용
+- 이모지 사용
+- AI의 말투("ㅋㅋ", "ㄱㄱ", "아이고" 등) 그대로 사용
+- "대화를 나눴어요", "시간을 보냈어요" 같은 모호한 표현
 
-요약만 출력하세요:`;
+**중요**: 위 대화의 핵심 내용을 읽는 사람이 무슨 일이 있었는지 명확히 알 수 있도록 작성하세요.
+
+요약만 출력하세요 (80자 이상):`;
 
   try {
     const response = await fetch(
@@ -385,17 +382,31 @@ ${conversationContext}
       .trim();
 
     // 품질 검증
-    if (summary.length >= 30 && summary.length <= 300) {
-      // 부적절한 내용 필터링
-      const hasInappropriate = /(병신|꺼저|ㅅㅂ|시발|개새)/.test(summary);
+    const hasInappropriate = /(병신|꺼저|ㅅㅂ|시발|개새)/.test(summary);
+    const tooVague = /(대화했어요|이야기를 나눴어요|시간을 보냈어요)$/.test(
+      summary
+    );
+    const tooShort = summary.length < 50;
 
-      if (!hasInappropriate) {
-        return summary;
-      }
+    if (hasInappropriate) {
+      console.warn('부적절한 내용 포함, 폴백 사용');
+      return generateFallbackSummary(history, personaName);
     }
 
-    console.warn('AI 요약 품질 미달, 폴백 사용. 길이:', summary.length);
-    return generateFallbackSummary(history, personaName);
+    if (tooShort || tooVague) {
+      console.warn(
+        `요약 품질 미달 (짧음: ${tooShort}, 모호함: ${tooVague}), 길이: ${summary.length}자`
+      );
+      console.warn('생성된 요약:', summary);
+      return generateFallbackSummary(history, personaName);
+    }
+
+    if (summary.length <= 300) {
+      return summary;
+    }
+
+    // 너무 긴 경우 잘라내기
+    return summary.slice(0, 297) + '...';
   } catch (error) {
     console.error('AI 요약 생성 오류:', error);
     return generateFallbackSummary(history, personaName);
@@ -422,6 +433,39 @@ function generateFallbackSummary(
     .filter((h) => h.role === 'ai')
     .map((h) => h.content.trim())
     .filter(Boolean);
+
+  // 여러 캐릭터와 대화한 경우 감지
+  const systemMessages = history.filter(
+    (h) =>
+      h.role === 'system' &&
+      /^--- 이제부터 .*와 대화를 시작합니다 ---$/.test(h.content)
+  );
+
+  if (systemMessages.length >= 2) {
+    // 여러 캐릭터와 대화한 경우
+    const characterNames = systemMessages
+      .map((m) => {
+        const match = m.content.match(
+          /--- 이제부터 (.*)와 대화를 시작합니다 ---/
+        );
+        return match ? match[1] : null;
+      })
+      .filter(Boolean);
+
+    if (characterNames.length >= 2) {
+      const firstChar = characterNames[0];
+      const lastChar = characterNames[characterNames.length - 1];
+      const otherChars = characterNames.slice(1, -1);
+
+      if (otherChars.length > 0) {
+        return `${firstChar}와 인사하고, ${otherChars.join(
+          ', '
+        )}와 대화하다가, 마지막으로 ${lastChar}와 대화를 시작했어요.`;
+      } else {
+        return `${firstChar}와 인사하고 대화하다가, ${lastChar}로 바꿔서 새로운 대화를 시작했어요.`;
+      }
+    }
+  }
 
   // 사용자 메시지에서 핵심 키워드 추출
   const allUserText = userMessages.join(' ');
@@ -526,11 +570,26 @@ function generateFallbackSummary(
 
   // 감정만 있는 경우
   if (emotionText) {
-    return `오늘은 ${emotionText} ${persona}와 이야기를 나눴어요.`;
+    return `오늘은 ${emotionText} ${persona}와 일상 이야기를 나누며 시간을 보냈어요.`;
+  }
+
+  // 짧은 인사만 있는 경우
+  const totalLength = allUserText.length + allAiText.length;
+  if (totalLength < 100 || userMessages.length <= 3) {
+    return `${persona}와 간단히 인사하고 첫 대화를 나눴어요.`;
   }
 
   // 기본값 (최후의 수단)
-  return `오늘은 ${persona}와 대화하며 하루를 보냈어요.`;
+  const topics = [];
+  if (/(인사|안녕|반가)/.test(allUserText)) topics.push('인사');
+  if (/(고마|감사)/.test(allUserText)) topics.push('감사 인사');
+  if (/(궁금|물어)/.test(allUserText)) topics.push('질문');
+
+  if (topics.length > 0) {
+    return `${persona}와 ${topics.join(', ')}를 나누며 대화를 시작했어요.`;
+  }
+
+  return `${persona}와 일상 대화를 나누며 하루를 보냈어요.`;
 }
 
 // extractRecommendedItems 함수는 기존 코드 그대로 사용
@@ -564,27 +623,46 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, processed: 0 });
     }
 
-    // 날짜 설정
+    // 날짜 설정 (한국 시간 기준)
     let date: Date;
     if (targetDate) {
       // 특정 날짜 지정 (YYYY-MM-DD 형식) - 한국 시간 기준으로 파싱
       const [year, month, day] = targetDate.split('-').map(Number);
-      date = new Date(year, month - 1, day, 0, 0, 0, 0);
+      // 한국 시간 00:00으로 생성
+      date = new Date(
+        `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(
+          2,
+          '0'
+        )}T00:00:00+09:00`
+      );
     } else if (testToday) {
-      // 테스트 모드면 오늘
-      date = new Date();
-      date.setHours(0, 0, 0, 0);
+      // 테스트 모드면 오늘 (한국 시간 기준)
+      const now = new Date();
+      const kstDate = new Date(
+        now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' })
+      );
+      const year = kstDate.getFullYear();
+      const month = String(kstDate.getMonth() + 1).padStart(2, '0');
+      const day = String(kstDate.getDate()).padStart(2, '0');
+      date = new Date(`${year}-${month}-${day}T00:00:00+09:00`);
     } else {
-      // 기본값: 어제
-      date = new Date();
-      date.setDate(date.getDate() - 1);
-      date.setHours(0, 0, 0, 0);
+      // 기본값: 어제 (한국 시간 기준)
+      const now = new Date();
+      const kstDate = new Date(
+        now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' })
+      );
+      kstDate.setDate(kstDate.getDate() - 1); // 어제
+      const year = kstDate.getFullYear();
+      const month = String(kstDate.getMonth() + 1).padStart(2, '0');
+      const day = String(kstDate.getDate()).padStart(2, '0');
+      date = new Date(`${year}-${month}-${day}T00:00:00+09:00`);
     }
 
     console.log(
-      '분석 대상 날짜:',
-      date.toISOString(),
-      date.toLocaleDateString('ko-KR')
+      '분석 대상 날짜 (한국 시간):',
+      date.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
+      'UTC:',
+      date.toISOString()
     );
 
     let processed = 0;

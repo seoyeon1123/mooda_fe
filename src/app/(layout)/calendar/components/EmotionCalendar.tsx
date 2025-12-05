@@ -20,19 +20,41 @@ export default function EmotionCalendar({
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [emotionData, setEmotionData] = useState<EmotionData[]>([]);
+  const [conversationDates, setConversationDates] = useState<string[]>([]);
 
   useEffect(() => {
-    const fetchEmotionData = async () => {
+    const fetchData = async () => {
+      // 감정 데이터 로드
       const data = await loadMonthlyEmotionData(
         userId,
         currentDate.getFullYear(),
-        currentDate.getMonth() + 1 // JavaScript의 월은 0부터 시작하므로 +1
+        currentDate.getMonth() + 1
       );
-
       setEmotionData(data);
+
+      // 대화가 있는 날짜 로드
+      try {
+        const response = await fetch('/api/socket', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            action: 'get-conversation-dates',
+            data: { userId, personalityId: null },
+          }),
+        });
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success) {
+            setConversationDates(result.dates);
+          }
+        }
+      } catch (error) {
+        console.error('대화 날짜 로드 실패:', error);
+      }
     };
-    fetchEmotionData();
-  }, [userId, currentDate]); // currentDate도 의존성에 추가
+    fetchData();
+  }, [userId, currentDate]);
 
   const getDaysInMonth = (date: Date) => {
     return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
@@ -78,6 +100,7 @@ export default function EmotionCalendar({
       const dayStr = String(day).padStart(2, '0');
       const dateString = `${year}-${month}-${dayStr}`;
       const emotion = emotionData.find((d) => d.date === dateString);
+      const hasConversation = conversationDates.includes(dateString);
 
       days.push(
         <div
@@ -88,7 +111,7 @@ export default function EmotionCalendar({
         >
           <div className="text-center">
             <span className="text-sm">{day}</span>
-            {emotion && (
+            {emotion ? (
               <div
                 className={`mt-1 p-1 rounded-full ${
                   emotionColors[emotion.emotion]
@@ -102,7 +125,9 @@ export default function EmotionCalendar({
                   className="mx-auto"
                 />
               </div>
-            )}
+            ) : hasConversation ? (
+              <div className="mt-1 w-2 h-2 bg-blue-400 rounded-full mx-auto" />
+            ) : null}
           </div>
         </div>
       );

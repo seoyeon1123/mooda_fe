@@ -321,16 +321,25 @@ async function generateNarrativeSummary(
 ${conversationContext}
 
 **요약 작성 규칙 (반드시 준수)**:
-1. **최소 80자 이상** 필수
-2. **구체적인 내용 3가지 이상 포함**:
-   - 사용자가 어떤 상황이나 고민을 이야기했는지 (예: 회사 스트레스, 인간관계, 학업 문제 등)
-   - 사용자가 느낀 감정은 무엇인지 (화남, 짜증, 슬픔, 기쁨, 불안 등)
-   - ${personaName || 'AI'}가 어떤 반응이나 조언을 줬는지 (구체적 내용 포함)
+1. **최소 80자 이상** 필수 (80자 미만이면 자동으로 폴백 요약으로 대체됨)
+2. **대화의 전체 흐름을 파악하고 구체적인 내용을 추출**:
+   - 사용자가 무엇을 요청하거나 고민했는지 (예: "떡볶이 메뉴 추천", "회사 스트레스", "인간관계 문제" 등)
+   - ${
+     personaName || 'AI'
+   }가 구체적으로 무엇을 추천하거나 조언했는지 (예: "오리지널 떡볶이 추천", "잠시 쉬라고 조언" 등)
+   - 대화가 여러 턴에 걸쳐 진행되었다면 전체 과정을 연결해서 설명 (예: "떡볶이 추천 → 음료도 고민 → 콜라 추천 → 결정")
+   - 사용자가 최종적으로 무엇을 결정했는지 (있는 경우)
 3. 여러 캐릭터와 대화했다면 모두 언급하기
-4. "대화했어요", "이야기 나눴어요" 같은 모호한 표현 금지
+4. **절대 금지 표현**:
+   - "대화했어요", "이야기 나눴어요", "시간을 보냈어요" 같은 모호한 표현
+   - "오늘은 대화를 나눴어요" 같은 추상적인 시작
+   - 구체적 내용 없이 일반적인 표현만 사용
+   - "떡볶이이나 라면를 추천해줬어요"처럼 실제로 추천하지 않은 음식을 포함
 
 **좋은 요약 예시** (반드시 이 수준으로 작성):
-- "yy와 처음 인사를 나누고 INFP 성향에 대해 이야기했다가, 무리로 바꿔서 인사하고, 마지막으로 test10와 만나서 ENTP 성향으로 반말로 대화를 시작했어요."
+- "오늘 떡볶이 메뉴를 고민했더니, ${
+    personaName || 'AI'
+  }가 오리지널 떡볶이를 추천해줬어요! 음료도 고민했는데 탄산음료를 추천해줘서 콜라를 마시기로 했어요."
 - "회사에서 상사와 다퉈서 화가 났는데, ${
     personaName || 'AI'
   }가 잠시 쉬면서 진정하고, 상황을 정리해서 대화하라고 조언해줬어요."
@@ -341,14 +350,22 @@ ${conversationContext}
     personaName || 'AI'
   }가 먼저 사과하고 솔직하게 얘기하라고 격려해줬어요."
 
+**중요 분석 지침**:
+- 대화를 처음부터 끝까지 읽고 전체 맥락을 이해하세요
+- 사용자가 요청한 것과 AI가 실제로 추천한 것을 정확히 구분하세요
+- 여러 번의 대화 턴이 있다면 시간 순서대로 연결해서 설명하세요
+- 구체적인 메뉴명, 조언 내용, 결정 사항을 정확히 포함하세요
+- 실제로 언급되지 않은 내용은 포함하지 마세요
+
 **절대 금지**:
 - 20자 이하의 짧은 요약 (예: "기분 좋아서 대화했어요")
 - 구체적 내용 없이 추상적인 표현만 사용
 - 이모지 사용
 - AI의 말투("ㅋㅋ", "ㄱㄱ", "아이고" 등) 그대로 사용
 - "대화를 나눴어요", "시간을 보냈어요" 같은 모호한 표현
+- 실제로 추천하지 않은 음식이나 내용을 포함
 
-**중요**: 위 대화의 핵심 내용을 읽는 사람이 무슨 일이 있었는지 명확히 알 수 있도록 작성하세요.
+**중요**: 위 대화의 핵심 내용을 읽는 사람이 무슨 일이 있었는지 명확히 알 수 있도록, 대화의 전체 흐름과 구체적인 내용을 정확히 반영해서 작성하세요.
 
 요약만 출력하세요 (80자 이상):`;
 
@@ -361,8 +378,8 @@ ${conversationContext}
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
-            temperature: 0.5,
-            maxOutputTokens: 200,
+            temperature: 0.7,
+            maxOutputTokens: 300,
           },
         }),
       }
@@ -383,19 +400,42 @@ ${conversationContext}
 
     // 품질 검증
     const hasInappropriate = /(병신|꺼저|ㅅㅂ|시발|개새)/.test(summary);
-    const tooVague = /(대화했어요|이야기를 나눴어요|시간을 보냈어요)$/.test(
-      summary
-    );
-    const tooShort = summary.length < 50;
+    // 모호한 표현이 끝부분에 있거나 전체 내용이 모호한 경우 체크
+    const tooVague =
+      /(대화했어요|이야기를 나눴어요|시간을 보냈어요)$/.test(summary) ||
+      /^(오늘|오늘은).*(대화|이야기|시간).*(나눴|보냈|했)/.test(summary);
+    // 실제로 추천하지 않은 음식이 포함된 경우 체크 (예: "떡볶이이나 라면를"처럼 둘 다 포함)
+    const hasWrongFood =
+      /(떡볶이|라면|피자|치킨).*[이나|와].*(라면|떡볶이|피자|치킨)/.test(
+        summary
+      ) && !/(오리지널|로제|크림|치즈|불닭)/.test(summary);
+    // 문장 수가 너무 적은 경우 (한 문장짜리 성의 없는 요약 방지)
+    const sentenceCount = summary
+      .split(/[.!?？!]\s*/)
+      .filter((s: string) => s.trim().length > 0).length;
+    const tooFewSentences = sentenceCount < 2;
+
+    // 프롬프트에서 요구한 80자 이상 기준으로 검증
+    const tooShort = summary.length < 80;
+
+    console.log('AI 생성 요약 (검증 전):', summary);
+    console.log('검증 결과:', {
+      tooShort,
+      tooVague,
+      hasWrongFood,
+      hasInappropriate,
+      sentenceCount,
+      tooFewSentences,
+    });
 
     if (hasInappropriate) {
       console.warn('부적절한 내용 포함, 폴백 사용');
       return generateFallbackSummary(history, personaName);
     }
 
-    if (tooShort || tooVague) {
+    if (tooShort || tooVague || hasWrongFood || tooFewSentences) {
       console.warn(
-        `요약 품질 미달 (짧음: ${tooShort}, 모호함: ${tooVague}), 길이: ${summary.length}자`
+        `요약 품질 미달 (짧음: ${tooShort}, 모호함: ${tooVague}, 잘못된 음식: ${hasWrongFood}, 문장수부족: ${tooFewSentences}), 길이: ${summary.length}자, 문장수: ${sentenceCount}`
       );
       console.warn('생성된 요약:', summary);
       return generateFallbackSummary(history, personaName);
@@ -536,16 +576,73 @@ function generateFallbackSummary(
     adviceText = '조언을 해줬어요';
   }
 
-  // 음식 추천 감지
-  const lastAiMsg = aiMessages[aiMessages.length - 1] || '';
-  const recommendedFoods = extractRecommendedItems(lastAiMsg);
+  // 음식 추천 감지 - 대화 전체를 분석해서 정확한 추천 내용 파악
+  // 사용자가 음식/메뉴를 요청한 경우 찾기
+  const foodRequestPattern =
+    /(메뉴|음식|먹을|떡볶이|라면|치킨|피자).*(추천|고민|물어|궁금)/;
+  const hasFoodRequest = userMessages.some((msg) =>
+    foodRequestPattern.test(msg)
+  );
 
-  if (recommendedFoods.length > 0) {
-    const foodList = recommendedFoods.slice(0, 2).join('이나 ');
-    if (emotionText) {
-      return `오늘 ${emotionText} ${persona}에게 얘기했더니 ${foodList}를 추천해줬어요.`;
+  if (hasFoodRequest) {
+    // AI가 실제로 추천한 음식 찾기 (여러 메시지에서)
+    const recommendedFoods: string[] = [];
+    for (const aiMsg of aiMessages) {
+      const foods = extractRecommendedItems(aiMsg);
+      for (const food of foods) {
+        if (!recommendedFoods.includes(food)) {
+          recommendedFoods.push(food);
+        }
+      }
     }
-    return `오늘은 ${persona}에게 메뉴를 물어봤더니 ${foodList}를 추천해줬어요.`;
+
+    // 구체적인 메뉴명/음료명 추출 (오리지널 떡볶이, 로제 떡볶이, 콜라 등)
+    const specificMenuPatterns = [
+      /(오리지널|로제|크림|치즈|불닭)\s*떡볶이/,
+      /떡볶이.*(어묵|오뎅)/,
+      /(콜라|사이다|탄산음료|음료)/,
+    ];
+
+    const specificMenus: string[] = [];
+    for (const aiMsg of aiMessages) {
+      for (const pattern of specificMenuPatterns) {
+        const match = aiMsg.match(pattern);
+        if (match) {
+          const menu = match[0].trim();
+          if (!specificMenus.includes(menu)) {
+            specificMenus.push(menu);
+          }
+        }
+      }
+    }
+
+    // 사용자가 최종 결정한 내용 찾기
+    const decisionPattern = /(그럼|그래|좋아|결정|마시기로|먹기로|할래)/;
+    const decisionMsg =
+      userMessages.reverse().find((msg) => decisionPattern.test(msg)) || '';
+    const decidedDrinkMatch = decisionMsg.match(/(콜라|사이다|탄산음료|음료)/);
+    const decidedDrink = decidedDrinkMatch ? decidedDrinkMatch[0] : null;
+
+    // 구체적인 메뉴가 있으면 우선 사용해서 "작은 이야기"처럼 서술
+    if (specificMenus.length > 0) {
+      const mainMenu = specificMenus.find((m) => m.includes('떡볶이'));
+      const drink =
+        decidedDrink ||
+        specificMenus.find((m) => /(콜라|사이다|탄산음료|음료)/.test(m));
+
+      if (mainMenu && drink) {
+        return `오늘은 떡볶이 메뉴를 고민하면서 ${persona}에게 먼저 물어봤어요. ${persona}가 ${mainMenu}를 추천해줬고, 음료로는 ${drink}를 마시라고 해서 결국 그 조합으로 정했어요.`;
+      }
+
+      const menuText = specificMenus.slice(0, 2).join('와 ');
+      return `오늘은 뭘 먹을지 고민되서 ${persona}에게 메뉴를 물어봤어요. ${persona}가 ${menuText}를 추천해줘서 그중에서 골라 먹기로 했어요.`;
+    }
+
+    // 일반 음식 추천이 있는 경우
+    if (recommendedFoods.length > 0) {
+      const foodList = recommendedFoods.slice(0, 2).join('와 ');
+      return `오늘은 뭐 먹을지 고민돼서 ${persona}에게 물어봤더니 ${foodList}를 추천해줬어요. 추천해준 메뉴를 보면서 무엇을 먹을지 천천히 정해봤어요.`;
+    }
   }
 
   // 상황과 조언이 모두 있는 경우
